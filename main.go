@@ -337,8 +337,8 @@ func main() {
 	// for _, cmd := range cmds {
 	// 	session.ApplicationCommandDelete(session.State.User.ID, "GuildIdToDeleteCommands", cmd.ID)
 	// }
-	// _, err := session.ApplicationCommandBulkOverwrite(session.State.User.ID, "", commands)
-	// check(err)
+	_, err := session.ApplicationCommandBulkOverwrite(session.State.User.ID, "", commands)
+	check(err)
 	defer session.Close()
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
