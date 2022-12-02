@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -163,10 +164,20 @@ var (
 		"party-count": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			ret := send_val("read", "da22")
 			name := send_val("string", "db8c")
+			var sb strings.Builder
+			for _, ch := range name {
+				if ch >= 0x80 && ch <= 0x99 {
+					sb.WriteByte('A' + (ch - 0x80))
+				} else if ch >= 0xA0 && ch <= 0xB9 {
+					sb.WriteByte('a' + (ch - 0xA0))
+				} else {
+					sb.WriteByte(' ')
+				}
+			}
 			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: "You have " + string(ret) + " pokemon in your party. Name: " + name,
+					Content: "You have " + string(ret) + " pokemon in your party. Name: " + sb.String(),
 				},
 			})
 			check(err)
@@ -265,7 +276,7 @@ func send(str string) {
 	fmt.Println(resp)
 }
 
-func send_val(str string, val string) string {
+func send_val(str string, val string) []byte {
 	req, err := http.NewRequest("GET", "http://localhost:1234/req", nil)
 	check(err)
 	q := req.URL.Query()
@@ -283,7 +294,7 @@ func send_val(str string, val string) string {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	return string(b)
+	return b
 }
 
 func check(err error) {
