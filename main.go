@@ -231,6 +231,9 @@ func respond(s *discordgo.Session, i *discordgo.InteractionCreate) {
 					Image: &discordgo.MessageEmbedImage{
 						URL: "attachment://" + filepath.Base(ScreenPath),
 					},
+					Footer: &discordgo.MessageEmbedFooter{
+						Text: "[Github](https://github.com/OFFTKP/pokemon-bot)",
+					},
 				},
 			},
 			Files: []*discordgo.File{
