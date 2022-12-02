@@ -1,0 +1,13 @@
+build/
+.vscode/
+*.sav
+token.txt
+tests/
+qa/
+Images/
+TEST_RESULTS.md
+gb_tkpwrapper.*
+generate_test_results.sh
+*.gbc
+example_main.cpp
+expected_results.csv

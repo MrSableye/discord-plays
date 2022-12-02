@@ -1,0 +1,7 @@
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_compile_definitions(NOAUDIO)
+project(GameboyWebserver)
+add_subdirectory("GameboyTKP")
+add_executable(GameboyWebserver main.cxx gb_headlesswrapper.cxx)
+target_link_libraries(GameboyWebserver GameboyTKP)
