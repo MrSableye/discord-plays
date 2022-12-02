@@ -11,3 +11,4 @@ generate_test_results.sh
 *.gbc
 example_main.cpp
 expected_results.csv
+backup/
