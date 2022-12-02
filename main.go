@@ -88,6 +88,10 @@ var (
 			Description: "See how many pokeballs you currently have in total",
 		},
 		{
+			Name:        "help",
+			Description: "Display help dialogue",
+		},
+		{
 			Name:        "spam",
 			Description: "Spam a button multiple times. Dialogues go bye bye!",
 			Options: []*discordgo.ApplicationCommandOption{
@@ -185,6 +189,9 @@ var (
 			send("select")
 			respond(s, i)
 		},
+		"help": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			displayHelp(s, i)
+		},
 		"spam": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			respondBad(s, i)
 			return
@@ -245,6 +252,9 @@ func respond(s *discordgo.Session, i *discordgo.InteractionCreate) {
 						Width:  320,
 						Height: 288,
 					},
+					Footer: &discordgo.MessageEmbedFooter{
+						Text: "https://github.com/OFFTKP/pokemon-bot",
+					},
 				},
 			},
 			Files: []*discordgo.File{
@@ -252,6 +262,23 @@ func respond(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			},
 		},
 	})
+}
+
+func displayHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{
+				{
+					Title:       "Help",
+					URL:         "https://github.com/OFFTKP/pokemon-bot",
+					Type:        discordgo.EmbedTypeRich,
+					Description: "Check out the github for help",
+				},
+			},
+		},
+	})
+	check(err)
 }
 
 func respondBad(s *discordgo.Session, i *discordgo.InteractionCreate) {
