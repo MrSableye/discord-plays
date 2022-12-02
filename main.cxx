@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
         std::lock_guard lg(the_mutex);
         res.set_content("ack", "text/plain");
         auto str = req.get_param_value("action");
-        bool expect_ret = req.get_param_value_count("val") != 0;
+        bool expect_ret = (req.get_param_value_count("val") != 0) || str == "screen";
         if (expect_ret)
             gb.SetValue(req.get_param_value("val"));
         auto com = serialize(str);

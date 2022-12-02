@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -9,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -38,7 +39,6 @@ func init() {
 var (
 	integerOptionMinValue = 2.0
 	BotToken              = flag.String("token", RSF("token.txt"), "Bot access token")
-	ScreenPath            = "screen.png"
 )
 
 var (
@@ -111,59 +111,34 @@ var (
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"screen": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			send("screen")
-			f, err := os.Open(ScreenPath)
-			check(err)
-			defer f.Close()
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Image: &discordgo.MessageEmbedImage{
-								URL: "attachment://" + filepath.Base(ScreenPath),
-							},
-						},
-					},
-					Files: []*discordgo.File{
-						{Name: filepath.Base(ScreenPath), Reader: f},
-					},
-				},
-			})
+			respond(s, i)
 		},
 		"start": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			send("start")
-			send("screen")
 			respond(s, i)
 		},
 		"l": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			send("l")
-			send("screen")
 			respond(s, i)
 		},
 		"r": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			send("r")
-			send("screen")
 			respond(s, i)
 		},
 		"u": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			send("u")
-			send("screen")
 			respond(s, i)
 		},
 		"d": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			send("d")
-			send("screen")
 			respond(s, i)
 		},
 		"a": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			send("a")
-			send("screen")
 			respond(s, i)
 		},
 		"b": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			send("b")
-			send("screen")
 			respond(s, i)
 		},
 		"party-count": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -208,7 +183,6 @@ var (
 		},
 		"select": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			send("select")
-			send("screen")
 			respond(s, i)
 		},
 		"spam": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -238,7 +212,6 @@ var (
 					for ; j < option; j++ {
 						send(spam)
 					}
-					send("screen")
 					respond(s, i)
 				}
 			}
@@ -255,28 +228,30 @@ func init() {
 }
 
 func respond(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	f, err := os.Open(ScreenPath)
+	resp := send("screen")
+	bs, err := ioutil.ReadAll(resp.Body)
 	check(err)
-	defer f.Close()
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	hexstr := string(bs)
+	data, err := hex.DecodeString(hexstr)
+	check(err)
+	reader := bytes.NewReader(data)
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{
 				{
 					Image: &discordgo.MessageEmbedImage{
-						URL: "attachment://" + filepath.Base(ScreenPath),
-					},
-					Footer: &discordgo.MessageEmbedFooter{
-						Text: "[Github](https://github.com/OFFTKP/pokemon-bot)",
+						URL:    "attachment://screen.png",
+						Width:  320,
+						Height: 288,
 					},
 				},
 			},
 			Files: []*discordgo.File{
-				{Name: filepath.Base(ScreenPath), Reader: f},
+				{Name: "screen.png", Reader: reader},
 			},
 		},
 	})
-	check(err)
 }
 
 func respondBad(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -289,7 +264,7 @@ func respondBad(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	check(err)
 }
 
-func send(str string) {
+func send(str string) *http.Response {
 	req, _ := http.NewRequest("GET", "http://localhost:1234/req", nil)
 	q := req.URL.Query()
 	q.Add("action", str)
@@ -297,7 +272,7 @@ func send(str string) {
 	fmt.Println(req)
 	client := &http.Client{}
 	resp, _ := client.Do(req)
-	fmt.Println(resp)
+	return resp
 }
 
 func send_val(str string, val string) []byte {

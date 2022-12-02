@@ -28,7 +28,8 @@
 
 #define action(index) bus_.ActionKeys &= (~(1UL << index)); \
             interrupt_flag_ |= IFInterrupt::JOYPAD; \
-            ExecuteCommand(Command::Second); \
+            for (int i = 0; i < 5; i++) \
+                ExecuteCommand(Command::Frame); \
             bus_.ActionKeys |= (1UL << index); \
             ExecuteCommand(Command::Second);
 
@@ -175,10 +176,19 @@ void Gameboy::update() {
     frame_clk_ += clk;
 }
 
+void callback(void* context, void* data, int size) {
+    std::string* str = (std::string*)context;
+    std::stringstream ss;
+    ss << std::hex;
+    for (int i = 0; i < size; i++) {
+        ss << std::setw(2) << std::setfill('0') << (int)(((uint8_t*)data)[i]);
+    }
+    *str =  ss.str();
+}
+
 void Gameboy::screenshot() {
     uint8_t* data = ppu_.GetScreenData();
-    stbi_write_png("screen.png", 160, 144, 4, data, 0);
-    system("convert -scale 320 screen.png screen.png");
+    stbi_write_png_to_func(&callback, &res_, 160, 144, 4, data, 0);
 }
 
 void Gameboy::save() {
