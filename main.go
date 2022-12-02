@@ -84,6 +84,10 @@ var (
 			Description: "See how many pokemon you currently have in the party",
 		},
 		{
+			Name:        "ball-count",
+			Description: "See how many pokeballs you currently have in total",
+		},
+		{
 			Name:        "spam",
 			Description: "Spam a button multiple times. Dialogues go bye bye!",
 			Options: []*discordgo.ApplicationCommandOption{
@@ -188,6 +192,16 @@ var (
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Content: "You have " + string(ret[0]) + " pokemon in your party.\n" + sb.String(),
+				},
+			})
+			check(err)
+		},
+		"ball-count": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			ret := send_val("read", "d5fc")
+			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "You have " + string(ret[0]) + " pokeballs.\n",
 				},
 			})
 			check(err)
