@@ -1,7 +1,9 @@
 #pragma once
 #ifndef TKP_GB_APU_H
 #define TKP_GB_APU_H
+#ifndef NOAUDIO
 #include <SDL2/SDL.h>
+#endif
 #include <queue>
 #include <GameboyTKP/gb_apu_ch.h>
 namespace TKPEmu::Gameboy::Devices {
