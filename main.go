@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -163,21 +164,30 @@ var (
 		},
 		"party-count": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			ret := send_val("read", "da22")
-			name := send_val("string", "db8c")
 			var sb strings.Builder
-			for _, ch := range name {
-				if ch >= 0x80 && ch <= 0x99 {
-					sb.WriteByte('A' + (ch - 0x80))
-				} else if ch >= 0xA0 && ch <= 0xB9 {
-					sb.WriteByte('a' + (ch - 0xA0))
-				} else {
-					sb.WriteByte(' ')
+			m, err := strconv.Atoi(string(ret[0]))
+			if err != nil {
+				return
+			}
+			max := uint64(m)
+			for j := uint64(0); j < max; j++ {
+				name := send_val("string", strconv.FormatUint(0xdb8c+(j*0xb), 16))
+				sb.WriteString("Pokemon " + string('0'+j+1) + ": ")
+				for _, ch := range name {
+					if ch >= 0x80 && ch <= 0x99 {
+						sb.WriteByte('A' + (ch - 0x80))
+					} else if ch >= 0xA0 && ch <= 0xB9 {
+						sb.WriteByte('a' + (ch - 0xA0))
+					} else {
+						sb.WriteByte(' ')
+					}
 				}
 			}
-			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+
+			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: "You have " + string(ret) + " pokemon in your party. Name: " + sb.String(),
+					Content: "You have " + string(ret[0]) + " pokemon in your party.\n" + sb.String(),
 				},
 			})
 			check(err)
