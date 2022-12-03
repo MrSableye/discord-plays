@@ -4,6 +4,7 @@
 #include <fstream>
 #include <vector>
 #include <iostream>
+#include <image_scale.hxx>
 #define write32(data) {\
     uint32_t x = data; \
     ofs.write((char*)&x, sizeof(x));\
@@ -188,7 +189,10 @@ void callback(void* context, void* data, int size) {
 
 void Gameboy::screenshot() {
     uint8_t* data = ppu_.GetScreenData();
-    stbi_write_png_to_func(&callback, &res_, 160, 144, 4, data, 0);
+    auto img_s = to_image_small(data);
+    auto img_b = scale(img_s);
+    auto data_b = to_bytes(img_b);
+    stbi_write_png_to_func(&callback, &res_, 320, 288, 4, data_b.data(), 0);
 }
 
 void Gameboy::save() {
