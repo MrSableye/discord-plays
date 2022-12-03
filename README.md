@@ -5,8 +5,9 @@ Movement: `/u /d /l /r`, `up down left right`
 Action buttons: `/a /b /start /select`    
 
 Useful commands:    
-`/party-count` prints party count and pokemon names    
-`/ball-count` prints ball TYPE count (TODO: make it print actual total ball count)    
+`/party-count` prints party count and pokemon info    
+`/ball-count` prints ball count    
+`/trainer` prints general info    
 
 ## Install:
 TODO: Make script that asks for token, rom etc. and makes run script
