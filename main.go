@@ -3,11 +3,13 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"math/bits"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,6 +18,34 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 )
+
+type Pokemon struct {
+	Nickname string `json:"Name"`
+	Name     string `json:"Type"`
+	Exp      int
+	Hp       int
+	MaxHp    int
+	Level    int
+	Status   int
+}
+
+type Pokeball struct {
+	Name  string
+	Count int
+}
+
+type Pokeballs struct {
+	Count int
+	Balls []Pokeball
+}
+
+type GameData struct {
+	Name  string
+	Rival string
+	Money int
+	Johto int
+	Kanto int
+}
 
 var session *discordgo.Session
 var processStdin io.WriteCloser
@@ -88,6 +118,10 @@ var (
 			Description: "See how many pokeballs you currently have in total",
 		},
 		{
+			Name:        "trainer",
+			Description: "See general trainer description",
+		},
+		{
 			Name:        "help",
 			Description: "Display help dialogue",
 		},
@@ -145,42 +179,77 @@ var (
 			send("b")
 			respond(s, i)
 		},
-		"party-count": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			ret := send_val("read", "da22")
+		"trainer": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			ret := get("trainer")
+			bs, err := ioutil.ReadAll(ret.Body)
+			check(err)
+			var trainer GameData
+			json.Unmarshal(bs, &trainer)
 			var sb strings.Builder
-			m, err := strconv.Atoi(string(ret[0]))
-			if err != nil {
-				return
-			}
-			max := uint64(m)
-			for j := uint64(0); j < max; j++ {
-				name := send_val("string", strconv.FormatUint(0xdb8c+(j*0xb), 16))
-				sb.WriteString("Pokemon " + string('0'+j+1) + ": ")
-				for _, ch := range name {
-					if ch >= 0x80 && ch <= 0x99 {
-						sb.WriteByte('A' + (ch - 0x80))
-					} else if ch >= 0xA0 && ch <= 0xB9 {
-						sb.WriteByte('a' + (ch - 0xA0))
-					} else {
-						sb.WriteByte(' ')
-					}
-				}
-			}
-
+			sb.WriteString("Name: " + trainer.Name + "\n")
+			sb.WriteString("Rival name: " + trainer.Rival + "\n")
+			sb.WriteString("Money: " + strconv.Itoa(trainer.Money) + "\n")
+			sb.WriteString("Johto badges: " + strconv.Itoa(bits.OnesCount8(uint8(trainer.Johto))) + "\n")
+			sb.WriteString("Kanto badges: " + strconv.Itoa(bits.OnesCount8(uint8(trainer.Kanto))) + "\n")
 			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: "You have " + string(ret[0]) + " pokemon in your party.\n" + sb.String(),
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Title:       "Trainer info",
+							Description: sb.String(),
+						},
+					},
+				},
+			})
+			check(err)
+		},
+		"party-count": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			ret := get("party")
+			bs, err := ioutil.ReadAll(ret.Body)
+			check(err)
+			var pokes []Pokemon
+			json.Unmarshal(bs, &pokes)
+			var sb strings.Builder
+			for i, poke := range pokes {
+				sb.WriteString("Pokemon " + strconv.Itoa(i+1) + ":\n")
+				sb.WriteString("\tName: " + poke.Nickname + "(" + poke.Name + ")\n")
+				sb.WriteString("\tLevel: " + strconv.Itoa(poke.Level) + "\n")
+				sb.WriteString("\tHp: " + strconv.Itoa(poke.Hp) + "/" + strconv.Itoa(poke.MaxHp) + "\n")
+				sb.WriteString("\n")
+			}
+			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Title:       "You have " + strconv.Itoa(len(pokes)) + " Pokemen",
+							Description: sb.String(),
+						},
+					},
 				},
 			})
 			check(err)
 		},
 		"ball-count": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			ret := send_val("read", "d5fc")
-			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			ret := get("balls")
+			bs, err := ioutil.ReadAll(ret.Body)
+			check(err)
+			var balls Pokeballs
+			json.Unmarshal(bs, &balls)
+			var sb strings.Builder
+			for _, ball := range balls.Balls {
+				sb.WriteString(ball.Name + ": " + strconv.Itoa(ball.Count) + "\n")
+			}
+			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: "You have " + string(ret[0]) + " pokeballs.\n",
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Title:       "You have " + strconv.Itoa(balls.Count) + " balls",
+							Description: sb.String(),
+						},
+					},
 				},
 			})
 			check(err)
@@ -289,6 +358,13 @@ func respondBad(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 	})
 	check(err)
+}
+
+func get(str string) *http.Response {
+	req, _ := http.NewRequest("GET", "http://localhost:1234/"+str, nil)
+	client := &http.Client{}
+	resp, _ := client.Do(req)
+	return resp
 }
 
 func send(str string) *http.Response {

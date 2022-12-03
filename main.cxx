@@ -43,9 +43,6 @@ int main(int argc, char** argv) {
     }
     std::string path = argv[1];
     Gameboy gb(path);
-    for (int i = 0; i < 120; i++) {
-        gb.ExecuteCommand(Command::Frame);
-    }
     gb.ExecuteCommand(Command::Screenshot);
     Command com = Command::Frame;
     httplib::Server svr;
@@ -61,6 +58,21 @@ int main(int argc, char** argv) {
         gb.ExecuteCommand(com);
         if (expect_ret)
             res.set_content(gb.GetRes().c_str(), "text/plain");
+    });
+    svr.Get("/party", [&gb, &the_mutex](const httplib::Request & req, httplib::Response &res) {
+        std::lock_guard lg(the_mutex);
+        gb.ExecuteCommand(Command::GetParty);
+        res.set_content(gb.GetRes(), "text/plain");
+    });
+    svr.Get("/trainer", [&gb, &the_mutex](const httplib::Request & req, httplib::Response &res) {
+        std::lock_guard lg(the_mutex);
+        gb.ExecuteCommand(Command::GetTrainer);
+        res.set_content(gb.GetRes(), "text/plain");
+    });
+    svr.Get("/balls", [&gb, &the_mutex](const httplib::Request & req, httplib::Response &res) {
+        std::lock_guard lg(the_mutex);
+        gb.ExecuteCommand(Command::GetBalls);
+        res.set_content(gb.GetRes(), "text/plain");
     });
     svr.listen("localhost", 1234);
 }

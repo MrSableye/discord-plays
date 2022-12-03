@@ -27,6 +27,9 @@ enum class Command {
     ReadSingle,
     ReadString,
     Error,
+    GetParty,
+    GetBalls,
+    GetTrainer,
 };
 
 class Gameboy {
@@ -63,6 +66,13 @@ private:
     void screenshot();
     void save();
     void load();
+    void get_party();
+    void get_balls();
+    void get_trainer();
+
+    std::string poke_to_ascii(uint8_t* name, int size);
+    std::string poke_type_to_name(uint8_t type);
+    std::string poke_item_to_name(uint8_t type);
 
     std::mutex DrawMutex;
     int frame_clk_ = 0;
