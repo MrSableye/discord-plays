@@ -1,5 +1,16 @@
 # pokemon-bot
 
+## Commands:
+Movement: `/u /d /l /r`, `up down left right`    
+Action buttons: `/a /b /start /select`    
+
+Useful commands:    
+`/party-count` prints party count and pokemon names    
+`/ball-count` prints ball TYPE count (TODO: make it print actual total ball count)    
+
+## Install:
+TODO: Make script that asks for token, rom etc. and makes run script
+
 ## Consists of 3 parts:
 
 Go front-end, hosts the discord bot and communicates with the middle-end    
