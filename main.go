@@ -48,6 +48,7 @@ type GameData struct {
 }
 
 var session *discordgo.Session
+var value int64
 var processStdin io.WriteCloser
 
 func RSF(path string) string {
@@ -76,34 +77,106 @@ var (
 		{
 			Name:        "l",
 			Description: "Hit the left button",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "count",
+					Description: "Count to spam button (default: 1)",
+					Required:    false,
+					MaxValue:    10,
+				},
+			},
 		},
 		{
 			Name:        "r",
 			Description: "Hit the right button",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "count",
+					Description: "Count to spam button (default: 1)",
+					Required:    false,
+					MaxValue:    10,
+				},
+			},
 		},
 		{
 			Name:        "u",
 			Description: "Hit the up button",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "count",
+					Description: "Count to spam button (default: 1)",
+					Required:    false,
+					MaxValue:    10,
+				},
+			},
 		},
 		{
 			Name:        "d",
 			Description: "Hit the down button",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "count",
+					Description: "Count to spam button (default: 1)",
+					Required:    false,
+					MaxValue:    10,
+				},
+			},
 		},
 		{
 			Name:        "a",
 			Description: "Hit the A button",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "count",
+					Description: "Count to spam button (default: 1)",
+					Required:    false,
+					MaxValue:    10,
+				},
+			},
 		},
 		{
 			Name:        "b",
 			Description: "Hit the B button",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "count",
+					Description: "Count to spam button (default: 1)",
+					Required:    false,
+					MaxValue:    10,
+				},
+			},
 		},
 		{
 			Name:        "start",
 			Description: "Hit the Start button",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "count",
+					Description: "Count to spam button (default: 1)",
+					Required:    false,
+					MaxValue:    10,
+				},
+			},
 		},
 		{
 			Name:        "select",
 			Description: "Hit the Select button",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "count",
+					Description: "Count to spam button (default: 1)",
+					Required:    false,
+					MaxValue:    10,
+				},
+			},
 		},
 		{
 			Name:        "screen",
@@ -126,24 +199,12 @@ var (
 			Description: "Display help dialogue",
 		},
 		{
-			Name:        "spam",
-			Description: "Spam a button multiple times. Dialogues go bye bye!",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "button",
-					Description: "Button to spam (l,r,d,u,a,b,start,select)",
-					Required:    true,
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "spam-amount",
-					Description: "Amount to press button",
-					MinValue:    &integerOptionMinValue,
-					MaxValue:    5,
-					Required:    true,
-				},
-			},
+			Name:        "save",
+			Description: "Attemps to save the game by using a button sequence (Check image for confirmation)",
+		},
+		{
+			Name:        "map",
+			Description: "Display current map position",
 		},
 	}
 
@@ -152,30 +213,51 @@ var (
 			respond(s, i)
 		},
 		"start": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			if len(i.ApplicationCommandData().Options) == 1 {
+				value = i.ApplicationCommandData().Options[0].IntValue()
+			}
 			send("start")
 			respond(s, i)
 		},
 		"l": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			if len(i.ApplicationCommandData().Options) == 1 {
+				value = i.ApplicationCommandData().Options[0].IntValue()
+			}
 			send("l")
 			respond(s, i)
 		},
 		"r": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			if len(i.ApplicationCommandData().Options) == 1 {
+				value = i.ApplicationCommandData().Options[0].IntValue()
+			}
 			send("r")
 			respond(s, i)
 		},
 		"u": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			if len(i.ApplicationCommandData().Options) == 1 {
+				value = i.ApplicationCommandData().Options[0].IntValue()
+			}
 			send("u")
 			respond(s, i)
 		},
 		"d": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			if len(i.ApplicationCommandData().Options) == 1 {
+				value = i.ApplicationCommandData().Options[0].IntValue()
+			}
 			send("d")
 			respond(s, i)
 		},
 		"a": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			if len(i.ApplicationCommandData().Options) == 1 {
+				value = i.ApplicationCommandData().Options[0].IntValue()
+			}
 			send("a")
 			respond(s, i)
 		},
 		"b": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			if len(i.ApplicationCommandData().Options) == 1 {
+				value = i.ApplicationCommandData().Options[0].IntValue()
+			}
 			send("b")
 			respond(s, i)
 		},
@@ -203,6 +285,33 @@ var (
 				},
 			})
 			check(err)
+		},
+		"map": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			resp := get("map")
+			bs, err := ioutil.ReadAll(resp.Body)
+			check(err)
+			hexstr := string(bs)
+			data, err := hex.DecodeString(hexstr)
+			check(err)
+			reader := bytes.NewReader(data)
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Image: &discordgo.MessageEmbedImage{
+								URL: "attachment://screen.png",
+							},
+							Footer: &discordgo.MessageEmbedFooter{
+								Text: "https://github.com/OFFTKP/pokemon-bot",
+							},
+						},
+					},
+					Files: []*discordgo.File{
+						{Name: "screen.png", Reader: reader},
+					},
+				},
+			})
 		},
 		"party-count": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			ret := get("party")
@@ -261,8 +370,12 @@ var (
 		"help": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			displayHelp(s, i)
 		},
+		"save": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			get("save")
+			respond(s, i)
+		},
 		"spam": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			respondBad(s, i)
+			respondBad(s, i, "Not implemented yet, crashes discord bot sometimes")
 			return
 			options := i.ApplicationCommandData().Options
 			optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
@@ -275,7 +388,7 @@ var (
 				option := option_.StringValue()
 				if !(option == "a" || option == "b" || option == "u" || option == "d" || option == "r" ||
 					option == "l" || option == "start" || option == "select") {
-					respondBad(s, i)
+					respondBad(s, i, "Bad usage of command >:(")
 				} else {
 					dospam = true
 					spam = option
@@ -342,7 +455,7 @@ func displayHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 					Title:       "Help",
 					URL:         "https://github.com/OFFTKP/pokemon-bot",
 					Type:        discordgo.EmbedTypeRich,
-					Description: "Check out the github for help",
+					Description: "Check out the github for help\n\nFeel free to contribute or raise an issue",
 				},
 			},
 		},
@@ -350,7 +463,7 @@ func displayHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	check(err)
 }
 
-func respondBad(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func respondBad(s *discordgo.Session, i *discordgo.InteractionCreate, str string) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -371,10 +484,12 @@ func send(str string) *http.Response {
 	req, _ := http.NewRequest("GET", "http://localhost:1234/req", nil)
 	q := req.URL.Query()
 	q.Add("action", str)
+	q.Add("val", strconv.Itoa(int(value)))
 	req.URL.RawQuery = q.Encode()
 	fmt.Println(req)
 	client := &http.Client{}
 	resp, _ := client.Do(req)
+	value = 1
 	return resp
 }
 

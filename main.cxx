@@ -33,10 +33,13 @@ Command serialize(std::string command) {
         return Command::ReadSingle;
     else if (command == "string")
         return Command::ReadString;
+    else if (command == "spam")
+        return Command::Spam;
     return Command::Error;
 }
 
 int main(int argc, char** argv) {
+
     if (argc != 2) {
         std::cerr << "Invalid number of arguments" << std::endl;
         return 1;
@@ -44,11 +47,21 @@ int main(int argc, char** argv) {
     std::string path = argv[1];
     Gameboy gb(path);
     gb.ExecuteCommand(Command::Screenshot);
+    gb.ExecuteCommand(Command::Start);
+    gb.ExecuteCommand(Command::Second);
+    gb.ExecuteCommand(Command::Start);
+    gb.ExecuteCommand(Command::A);
+    gb.ExecuteCommand(Command::Second);
+    gb.ExecuteCommand(Command::A);
+    gb.ExecuteCommand(Command::A);
+    
+    gb.SetMemory(0xD199, 0); // Set text speed to instant
     Command com = Command::Frame;
     httplib::Server svr;
     std::mutex the_mutex;
     svr.Get("/req", [&gb, &the_mutex](const httplib::Request & req, httplib::Response &res) {
         std::lock_guard lg(the_mutex);
+        gb.SetValue("");
         res.set_content("ack", "text/plain");
         auto str = req.get_param_value("action");
         bool expect_ret = (req.get_param_value_count("val") != 0) || str == "screen";
@@ -73,6 +86,16 @@ int main(int argc, char** argv) {
         std::lock_guard lg(the_mutex);
         gb.ExecuteCommand(Command::GetBalls);
         res.set_content(gb.GetRes(), "text/plain");
+    });
+    svr.Get("/map", [&gb, &the_mutex](const httplib::Request & req, httplib::Response &res) {
+        std::lock_guard lg(the_mutex);
+        gb.ExecuteCommand(Command::GetMap);
+        res.set_content(gb.GetRes(), "text/plain");
+    });
+    svr.Get("/save", [&gb, &the_mutex](const httplib::Request & req, httplib::Response &res) {
+        std::lock_guard lg(the_mutex);
+        gb.ExecuteCommand(Command::StartSave);
+        res.set_content("started save", "text/plain");
     });
     svr.listen("localhost", 1234);
 }

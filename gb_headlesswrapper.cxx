@@ -22,19 +22,19 @@ using namespace nlohmann;
     ofs.write((char*)&x, sizeof(x));\
 }
 
-#define direction(index) bus_.DirectionKeys &= (~(1UL << index)); \
+#define direction(index) { bus_.DirectionKeys &= (~(1UL << index)); \
             interrupt_flag_ |= IFInterrupt::JOYPAD; \
             for (int i = 0; i < 5; i++) \
                 ExecuteCommand(Command::Frame); \
             bus_.DirectionKeys |= (1UL << index); \
-            ExecuteCommand(Command::Second);
+            ExecuteCommand(Command::Second); }
 
-#define action(index) bus_.ActionKeys &= (~(1UL << index)); \
+#define action(index) { bus_.ActionKeys &= (~(1UL << index)); \
             interrupt_flag_ |= IFInterrupt::JOYPAD; \
             for (int i = 0; i < 5; i++) \
                 ExecuteCommand(Command::Frame); \
             bus_.ActionKeys |= (1UL << index); \
-            ExecuteCommand(Command::Second);
+            ExecuteCommand(Command::Second); }
 
 struct Pokemon {
     uint8_t type;
@@ -75,7 +75,7 @@ Gameboy::Gameboy(std::string path) :
     channel_array_ptr_(std::make_shared<ChannelArray>()),
     bus_(channel_array_ptr_),
     apu_(channel_array_ptr_, bus_.GetReference(addr_NR52)),
-    ppu_(bus_, &DrawMutex),
+    ppu_(bus_, nullptr),
     timer_(channel_array_ptr_, bus_),
     cpu_(bus_, ppu_, apu_, timer_),
     interrupt_flag_(bus_.GetReference(addr_if))
@@ -107,39 +107,92 @@ void Gameboy::ExecuteCommand(Command command) {
             break;
         }
         case Command::Start: {
-			action(3)
+            int count = std::atoi(value_.c_str());
+            if ((count <= 0) || (count > 10))
+                count = 1;
+            for (int i = 0; i < count; i++)
+			    action(3)
             break;
         }
         case Command::Select: {
-            action(2);
+            int count = std::atoi(value_.c_str());
+            if ((count <= 0) || (count > 10))
+                count = 1;
+            for (int i = 0; i < count; i++)
+                action(2);
             break;
         }
         case Command::B: {
-            action(1);
+            int count = std::atoi(value_.c_str());
+            if ((count <= 0) || (count > 10))
+                count = 1;
+            for (int i = 0; i < count; i++)
+                action(1);
             break;
         }
         case Command::A: {
-            action(0);
+            int count = std::atoi(value_.c_str());
+            if ((count <= 0) || (count > 10))
+                count = 1;
+            for (int i = 0; i < count; i++)
+                action(0);
             break;
         }
         case Command::Down: {
-            direction(3);
+            int count = std::atoi(value_.c_str());
+            if ((count <= 0) || (count > 10))
+                count = 1;
+            for (int i = 0; i < count; i++)
+                direction(3);
             break;
         }
         case Command::Up: {
-            direction(2);
+            int count = std::atoi(value_.c_str());
+            if ((count <= 0) || (count > 10))
+                count = 1;
+            for (int i = 0; i < count; i++)
+                direction(2);
             break;
         }
         case Command::Left: {
-            direction(1);
+            int count = std::atoi(value_.c_str());
+            if ((count <= 0) || (count > 10))
+                count = 1;
+            for (int i = 0; i < count; i++)
+                direction(1);
             break;
         }
         case Command::Right: {
-            direction(0);
+            int count = std::atoi(value_.c_str());
+            if ((count <= 0) || (count > 10))
+                count = 1;
+            for (int i = 0; i < count; i++)
+                direction(0);
             break;
         }
         case Command::Save: {
             save();
+            bus_.battery_save();
+            break;
+        }
+        case Command::StartSave: {
+            value_ = "";
+            ExecuteCommand(Command::Start);
+            // Change all options to "Save"
+            bus_.Write(0xCF2A, 0x04);
+            bus_.Write(0xCF2B, 0x04);
+            bus_.Write(0xCF2C, 0x04);
+            bus_.Write(0xCF2D, 0x04);
+            bus_.Write(0xCF2E, 0x04);
+            bus_.Write(0xCF2F, 0x04);
+            bus_.Write(0xCF30, 0x04);
+            bus_.Write(0xCF31, 0x04);
+            ExecuteCommand(Command::A);
+            ExecuteCommand(Command::A);
+            ExecuteCommand(Command::A);
+            ExecuteCommand(Command::A);
+            ExecuteCommand(Command::A);
+            ExecuteCommand(Command::Frame);
             bus_.battery_save();
             break;
         }
@@ -157,6 +210,26 @@ void Gameboy::ExecuteCommand(Command command) {
         }
         case Command::GetTrainer: {
             get_trainer();
+            break;
+        }
+        case Command::GetMap: {
+            value_ = "";
+            ExecuteCommand(Command::Start);
+            // Change all options to "Pokegear"
+            bus_.Write(0xCF2A, 0x07);
+            bus_.Write(0xCF2B, 0x07);
+            bus_.Write(0xCF2C, 0x07);
+            bus_.Write(0xCF2D, 0x07);
+            bus_.Write(0xCF2E, 0x07);
+            bus_.Write(0xCF2F, 0x07);
+            bus_.Write(0xCF30, 0x07);
+            bus_.Write(0xCF31, 0x07);
+            ExecuteCommand(Command::A);
+            ExecuteCommand(Command::Right);
+            ExecuteCommand(Command::Frame);
+            ExecuteCommand(Command::Screenshot);
+            ExecuteCommand(Command::B);
+            ExecuteCommand(Command::B);
             break;
         }
         case Command::ReadSingle: {
@@ -317,7 +390,7 @@ void Gameboy::get_party() {
             | poke.exp[1] << 8
             | poke.exp[2];
         o["Hp"] = poke.hp[0] << 8 | poke.hp[1];
-        o["MaxHp"] = poke.max_hp[0] << 8 | poke.hp[1];
+        o["MaxHp"] = poke.max_hp[0] << 8 | poke.max_hp[1];
         addr = 0xDB8C + i * 0xB;
         PokemonName pname;
         mem = &bus_.fast_redirect_address(addr);
@@ -362,7 +435,7 @@ void Gameboy::get_trainer() {
     uint8_t m[4];
     uint8_t* memm = &bus_.fast_redirect_address(0xD573);
     memcpy(m, memm, 3);
-    uint32_t money = (uint32_t)m[0] << 16 | (uint16_t)m[1] << 8 | m[0];
+    uint32_t money = m[0] << 16 | m[1] << 8 | m[2];
     
     t["Name"] = poke_to_ascii(ch, 7);
     t["Rival"] = poke_to_ascii(chr, 7);
@@ -638,12 +711,94 @@ std::string Gameboy::poke_to_ascii(uint8_t* data, int size) {
     std::string ret;
     for (int i = 0; i < size; i++) {
         auto ch = data[i];
-        if (ch >= 0x80 && ch <= 0x99) {
-            ret += ('A' + (ch - 0x80));
-        } else if (ch >= 0xA0 && ch <= 0xB9) {
-            ret += ('a' + (ch - 0xA0));
-        } else {
-            ret += (' ');
+        switch (ch) {
+            case 0x4F: ret += "="; break;
+            case 0x57: ret += "#"; break;
+            case 0x51: ret += "*"; break;
+            case 0x52: ret += "A1"; break;
+            case 0x53: ret += "A2"; break;
+            case 0x54: ret += "PK"; break;
+            case 0x55: ret += "+"; break;
+            case 0x58: ret += "$"; break;
+            case 0x7F: ret += " "; break;
+            case 0x80: ret += "A"; break;
+            case 0x81: ret += "B"; break;
+            case 0x82: ret += "C"; break;
+            case 0x83: ret += "D"; break;
+            case 0x84: ret += "E"; break;
+            case 0x85: ret += "F"; break;
+            case 0x86: ret += "G"; break;
+            case 0x87: ret += "H"; break;
+            case 0x88: ret += "I"; break;
+            case 0x89: ret += "J"; break;
+            case 0x8A: ret += "K"; break;
+            case 0x8B: ret += "L"; break;
+            case 0x8C: ret += "M"; break;
+            case 0x8D: ret += "N"; break;
+            case 0x8E: ret += "O"; break;
+            case 0x8F: ret += "P"; break;
+            case 0x90: ret += "Q"; break;
+            case 0x91: ret += "R"; break;
+            case 0x92: ret += "S"; break;
+            case 0x93: ret += "T"; break;
+            case 0x94: ret += "U"; break;
+            case 0x95: ret += "V"; break;
+            case 0x96: ret += "W"; break;
+            case 0x97: ret += "X"; break;
+            case 0x98: ret += "Y"; break;
+            case 0x99: ret += "Z"; break;
+            case 0x9C: ret += ":"; break;
+            case 0xA0: ret += "a"; break;
+            case 0xA1: ret += "b"; break;
+            case 0xA2: ret += "c"; break;
+            case 0xA3: ret += "d"; break;
+            case 0xA4: ret += "e"; break;
+            case 0xA5: ret += "f"; break;
+            case 0xA6: ret += "g"; break;
+            case 0xA7: ret += "h"; break;
+            case 0xA8: ret += "i"; break;
+            case 0xA9: ret += "j"; break;
+            case 0xAA: ret += "k"; break;
+            case 0xAB: ret += "l"; break;
+            case 0xAC: ret += "m"; break;
+            case 0xAD: ret += "n"; break;
+            case 0xAE: ret += "o"; break;
+            case 0xAF: ret += "p"; break;
+            case 0xB0: ret += "q"; break;
+            case 0xB1: ret += "r"; break;
+            case 0xB2: ret += "s"; break;
+            case 0xB3: ret += "t"; break;
+            case 0xB4: ret += "u"; break;
+            case 0xB5: ret += "v"; break;
+            case 0xB6: ret += "w"; break;
+            case 0xB7: ret += "x"; break;
+            case 0xB8: ret += "y"; break;
+            case 0xB9: ret += "z"; break;
+            case 0xBA: ret += ","; break;
+            case 0xBC: ret += "'l"; break;
+            case 0xBD: ret += "'s"; break;
+            case 0xBE: ret += "'t"; break;
+            case 0xBF: ret += "'v"; break;
+            case 0xE0: ret += "'"; break;
+            case 0xE1: ret += "PK"; break;
+            case 0xE2: ret += "MN"; break;
+            case 0xE3: ret += "-"; break;
+            case 0xE4: ret += "'r"; break;
+            case 0xE5: ret += "'m"; break;
+            case 0xE6: ret += "?"; break;
+            case 0xE7: ret += "!"; break;
+            case 0xE8: ret += "."; break;
+            case 0xF4: ret += ","; break;
+            case 0xF6: ret += "0"; break;
+            case 0xF7: ret += "1"; break;
+            case 0xF8: ret += "2"; break;
+            case 0xF9: ret += "3"; break;
+            case 0xFA: ret += "4"; break;
+            case 0xFB: ret += "5"; break;
+            case 0xFC: ret += "6"; break;
+            case 0xFD: ret += "7"; break;
+            case 0xFE: ret += "8"; break;
+            case 0xFF: ret += "9"; break;
         }
     }
     return ret;

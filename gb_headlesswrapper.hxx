@@ -30,6 +30,9 @@ enum class Command {
     GetParty,
     GetBalls,
     GetTrainer,
+    GetMap,
+    StartSave,
+    Spam,
 };
 
 class Gameboy {
@@ -46,8 +49,10 @@ private:
     using Cartridge = TKPEmu::Gameboy::Devices::Cartridge;
 public:
     Gameboy(std::string path);
+    Gameboy(const Gameboy&) = default;
     void ExecuteCommand(Command command);
     void SetValue(std::string val) { value_ = val; }
+    void SetMemory(uint16_t addr, uint8_t val) { bus_.Write(addr, val); }
     std::string GetRes() { return res_; }
 private:
     ChannelArrayPtr channel_array_ptr_;
@@ -69,12 +74,12 @@ private:
     void get_party();
     void get_balls();
     void get_trainer();
+    void get_map();
 
     std::string poke_to_ascii(uint8_t* name, int size);
     std::string poke_type_to_name(uint8_t type);
     std::string poke_item_to_name(uint8_t type);
 
-    std::mutex DrawMutex;
     int frame_clk_ = 0;
     std::string value_;
     std::string res_;

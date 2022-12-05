@@ -111,9 +111,14 @@ namespace TKPEmu::Gameboy::Devices {
 				IF |= set_mode(MODE_VBLANK);
 				window_internal_ = 0;
 				window_internal_temp_ = 0;
-				std::lock_guard<std::mutex> lg(*draw_mutex_);
-				std::swap(screen_color_data_, screen_color_data_second_);
-				ReadyToDraw = true;
+				if (draw_mutex_) {
+					std::lock_guard<std::mutex> lg(*draw_mutex_);
+					std::swap(screen_color_data_, screen_color_data_second_);
+					ReadyToDraw = true;
+				} else {
+					std::swap(screen_color_data_, screen_color_data_second_);
+					ReadyToDraw = true;
+				}
 			}
 		}
 		if (!enabled) {

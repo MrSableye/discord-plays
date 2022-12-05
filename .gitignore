@@ -12,3 +12,4 @@ generate_test_results.sh
 example_main.cpp
 expected_results.csv
 backup/
+*.out
