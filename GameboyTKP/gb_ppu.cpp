@@ -185,6 +185,8 @@ namespace TKPEmu::Gameboy::Devices {
 	}
 
 	void PPU::draw_scanline() {
+		if (!Draw)
+			return;
 		bool enabled = LCDC & LCDCFlag::LCD_ENABLE;
 		if (enabled) {
 			if (UseCGB) {

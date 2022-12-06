@@ -102,8 +102,11 @@ void Gameboy::ExecuteCommand(Command command) {
             break;
         }
         case Command::Screenshot: {
-            ExecuteCommand(Command::Second);
+            ppu_.Draw = true;
+            frame();
+            frame();
             screenshot();
+            ppu_.Draw = false;
             break;
         }
         case Command::Start: {
