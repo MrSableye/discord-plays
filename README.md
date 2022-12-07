@@ -21,6 +21,8 @@ Useful commands:
 `/trainer` prints general info    
 `/save` saves the game through the in game dialog and dumps the battery    
 `/map` opens the map, takes a screenshot and returns it to the bot, exits map    
+`/summary` shows a gif of the last few frames    
+`/leaderboard` shows who pressed the most keys     
 
 ## Instructions:
 To add this bot to your server, you need a bot token. Create an application and a bot, get the token and put it in the same directory as main.go as `token.txt`.
