@@ -28,7 +28,7 @@ using namespace nlohmann;
             for (int i = 0; i < 5; i++) \
                 ExecuteCommand(Command::Frame); \
             bus_.DirectionKeys |= (1UL << index); \
-            ExecuteCommand(Command::Screenshot); }
+            ExecuteCommand(Command::Screenshot);}
 
 #define action(index) { bus_.ActionKeys &= (~(1UL << index)); \
             interrupt_flag_ |= IFInterrupt::JOYPAD; \
@@ -105,11 +105,19 @@ void Gameboy::ExecuteCommand(Command command) {
                 frame();
             break;
         }
+        case Command::ScreenshotPNG: {
+            ppu_.Draw = true;
+            frame();
+            frame();
+            screenshot(true);
+            ppu_.Draw = false;
+            break;
+        }
         case Command::Screenshot: {
             ppu_.Draw = true;
             frame();
             frame();
-            screenshot();
+            screenshot(false);
             ppu_.Draw = false;
             break;
         }
@@ -336,14 +344,14 @@ void callback(void* context, void* data, int size) {
     *str =  ss.str();
 }
 
-void Gameboy::screenshot() {
+void Gameboy::screenshot(bool write_png) {
     uint8_t* data = ppu_.GetScreenData();
+    auto& cur_arr = last_minute_frames_[last_minute_frame_index_++ % GifFrameCount];
     auto img_s = to_image_small(data);
     auto img_b = scale(img_s);
-    auto data_b = to_bytes(img_b);
-    auto& cur_arr = *last_minute_frames_[last_minute_frame_index_++ % GifFrameCount];
-    std::copy_n(data_b.begin(), 320 * 288 * 4, cur_arr.begin());
-    stbi_write_png_to_func(&callback, &res_, 320, 288, 4, data_b.data(), 0);
+    to_bytes(img_b, cur_arr->data());
+    if (write_png)
+        stbi_write_png_to_func(&callback, &res_, 320, 288, 4, cur_arr->data(), 0);
 }
 
 void Gameboy::get_gif() {

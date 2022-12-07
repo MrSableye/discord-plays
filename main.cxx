@@ -24,7 +24,7 @@ Command serialize(std::string command) {
     else if (command == "exit")
         return Command::Exit;
     else if (command == "screen")
-        return Command::Screenshot;
+        return Command::ScreenshotPNG;
     else if (command == "save")
         return Command::Save;
     else if (command == "load")

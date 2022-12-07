@@ -8,7 +8,7 @@
 #include <GameboyTKP/gb_apu.h>
 #include <GameboyTKP/gb_apu_ch.h>
 
-#define GifFrameCount 60
+#define GifFrameCount 120
 
 using Frame = std::array<uint8_t, 320 * 288 * 4>;
 enum class Command {
@@ -23,6 +23,7 @@ enum class Command {
     Select,
     Frame,
     Screenshot,
+    ScreenshotPNG,
     Second,
     Exit,
     Save,
@@ -74,7 +75,7 @@ private:
     void reset();
     void frame();
     void update();
-    void screenshot();
+    void screenshot(bool write_png);
     void save();
     void load();
     void get_gif();

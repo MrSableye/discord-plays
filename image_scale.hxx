@@ -50,9 +50,7 @@ image_big scale(const image_small& image) {
     return ret;
 }
 
-std::vector<uint8_t> to_bytes(const image_big& image) {
-    std::vector<uint8_t> ret;
-    ret.resize(320 * 288 * 4);
+void to_bytes(const image_big& image, uint8_t* ret) {
     for (int y = 0; y < 288; y++) {
         for (int x = 0; x < 320; x++) {
             ret[((y * 320) + x) * 4] = image[y][x].R;
@@ -61,7 +59,6 @@ std::vector<uint8_t> to_bytes(const image_big& image) {
             ret[((y * 320) + x) * 4 + 3] = image[y][x].A;
         }
     }
-    return ret;
 }
 
 #endif
