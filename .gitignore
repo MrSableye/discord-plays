@@ -13,3 +13,4 @@ example_main.cpp
 expected_results.csv
 backup/
 *.out
+*.gif
