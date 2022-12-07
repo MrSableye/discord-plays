@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -50,6 +51,7 @@ type GameData struct {
 var session *discordgo.Session
 var value int64
 var processStdin io.WriteCloser
+var mutex sync.Mutex
 
 func RSF(path string) string {
 	b, err := ioutil.ReadFile(path)
@@ -318,6 +320,12 @@ var (
 			})
 		},
 		"summary": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{},
+			})
+			mutex.Lock()
+			defer mutex.Unlock()
 			get("gif")
 			// bs, err := ioutil.ReadAll(resp.Body)
 			// check(err)
@@ -329,22 +337,21 @@ var (
 				return
 			}
 			reader := bytes.NewReader(data)
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Image: &discordgo.MessageEmbedImage{
-								URL: "attachment://my.gif",
-							},
-							Footer: &discordgo.MessageEmbedFooter{
-								Text: "https://github.com/OFFTKP/pokemon-bot",
-							},
-						},
+			embeds := []*discordgo.MessageEmbed{
+				{
+					Title: "GIF summary",
+					Image: &discordgo.MessageEmbedImage{
+						URL: "attachment://my.gif",
 					},
-					Files: []*discordgo.File{
-						{Name: "my.gif", Reader: reader},
+					Footer: &discordgo.MessageEmbedFooter{
+						Text: "https://github.com/OFFTKP/pokemon-bot",
 					},
+				},
+			}
+			s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Embeds: &embeds,
+				Files: []*discordgo.File{
+					{Name: "my.gif", Reader: reader},
 				},
 			})
 		},
@@ -409,37 +416,6 @@ var (
 			get("save")
 			respond(s, i)
 		},
-		"spam": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			respondBad(s, i, "Not implemented yet, crashes discord bot sometimes")
-			return
-			options := i.ApplicationCommandData().Options
-			optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
-			for _, opt := range options {
-				optionMap[opt.Name] = opt
-			}
-			dospam := false
-			spam := ""
-			if option_, ok := optionMap["button"]; ok {
-				option := option_.StringValue()
-				if !(option == "a" || option == "b" || option == "u" || option == "d" || option == "r" ||
-					option == "l" || option == "start" || option == "select") {
-					respondBad(s, i, "Bad usage of command >:(")
-				} else {
-					dospam = true
-					spam = option
-				}
-			}
-			if option_, ok := optionMap["spam-amount"]; ok {
-				option := option_.IntValue()
-				if dospam {
-					var j int64 = 0
-					for ; j < option; j++ {
-						send(spam)
-					}
-					respond(s, i)
-				}
-			}
-		},
 	}
 )
 
@@ -498,21 +474,26 @@ func displayHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	check(err)
 }
 
-func respondBad(s *discordgo.Session, i *discordgo.InteractionCreate, str string) {
+func respondMsg(s *discordgo.Session, i *discordgo.InteractionCreate, str string) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: "Bad usage of command! >:(",
+			Content: str,
 		},
 	})
 	check(err)
 }
 
 func get(str string) *http.Response {
+	fmt.Printf("GET %s", str)
 	req, _ := http.NewRequest("GET", "http://localhost:1234/"+str, nil)
 	client := &http.Client{}
 	resp, _ := client.Do(req)
 	return resp
+}
+
+func sendGif() {
+
 }
 
 func send(str string) *http.Response {
