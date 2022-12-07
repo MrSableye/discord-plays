@@ -53,6 +53,7 @@ int main(int argc, char** argv) {
     gb.ExecuteCommand(Command::Second);
     gb.ExecuteCommand(Command::A);
     gb.ExecuteCommand(Command::A);
+    gb.ExecuteCommand(Command::A);
     
     gb.SetMemory(0xD199, 0); // Set text speed to instant
     Command com = Command::Frame;

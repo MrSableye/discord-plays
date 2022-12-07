@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -48,26 +48,20 @@ type GameData struct {
 	Kanto int
 }
 
+type LeaderboardEntry struct {
+	Name       string
+	Keystrokes int
+}
+
+type Leaderboard struct {
+	Entries []LeaderboardEntry
+}
+
 var session *discordgo.Session
 var value int64
 var processStdin io.WriteCloser
-var mutex sync.Mutex
-
-func RSF(path string) string {
-	b, err := ioutil.ReadFile(path)
-	check(err)
-	return string(b)
-}
-
-func init() { flag.Parse() }
-
-func init() {
-	var err error
-	session, err = discordgo.New("Bot " + *BotToken)
-	if err != nil {
-		log.Fatalf("Invalid bot parameters: %v", err)
-	}
-}
+var summaryMutex sync.Mutex
+var leaderboard Leaderboard
 
 var (
 	integerOptionMinValue = 2.0
@@ -212,6 +206,10 @@ var (
 			Name:        "map",
 			Description: "Display current map position",
 		},
+		{
+			Name:        "leaderboard",
+			Description: "Display the leaderboard",
+		},
 	}
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
@@ -219,53 +217,25 @@ var (
 			respond(s, i)
 		},
 		"start": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if len(i.ApplicationCommandData().Options) == 1 {
-				value = i.ApplicationCommandData().Options[0].IntValue()
-			}
-			send("start")
-			respond(s, i)
+			press(s, i, "start")
 		},
 		"l": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if len(i.ApplicationCommandData().Options) == 1 {
-				value = i.ApplicationCommandData().Options[0].IntValue()
-			}
-			send("l")
-			respond(s, i)
+			press(s, i, "l")
 		},
 		"r": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if len(i.ApplicationCommandData().Options) == 1 {
-				value = i.ApplicationCommandData().Options[0].IntValue()
-			}
-			send("r")
-			respond(s, i)
+			press(s, i, "r")
 		},
 		"u": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if len(i.ApplicationCommandData().Options) == 1 {
-				value = i.ApplicationCommandData().Options[0].IntValue()
-			}
-			send("u")
-			respond(s, i)
+			press(s, i, "u")
 		},
 		"d": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if len(i.ApplicationCommandData().Options) == 1 {
-				value = i.ApplicationCommandData().Options[0].IntValue()
-			}
-			send("d")
-			respond(s, i)
+			press(s, i, "d")
 		},
 		"a": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if len(i.ApplicationCommandData().Options) == 1 {
-				value = i.ApplicationCommandData().Options[0].IntValue()
-			}
-			send("a")
-			respond(s, i)
+			press(s, i, "a")
 		},
 		"b": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if len(i.ApplicationCommandData().Options) == 1 {
-				value = i.ApplicationCommandData().Options[0].IntValue()
-			}
-			send("b")
-			respond(s, i)
+			press(s, i, "b")
 		},
 		"trainer": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			ret := get("trainer")
@@ -322,10 +292,9 @@ var (
 		"summary": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{},
 			})
-			mutex.Lock()
-			defer mutex.Unlock()
+			summaryMutex.Lock()
+			defer summaryMutex.Unlock()
 			get("gif")
 			// bs, err := ioutil.ReadAll(resp.Body)
 			// check(err)
@@ -406,8 +375,7 @@ var (
 			check(err)
 		},
 		"select": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			send("select")
-			respond(s, i)
+			press(s, i, "select")
 		},
 		"help": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			displayHelp(s, i)
@@ -415,17 +383,24 @@ var (
 		"save": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			get("save")
 			respond(s, i)
+			saveLeaderboard()
+		},
+		"leaderboard": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			ldr := printLeaderboard()
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Title:       "Leaderboard",
+							Description: ldr,
+						},
+					},
+				},
+			})
 		},
 	}
 )
-
-func init() {
-	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
-			h(s, i)
-		}
-	})
-}
 
 func respond(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	resp := send("screen")
@@ -485,15 +460,10 @@ func respondMsg(s *discordgo.Session, i *discordgo.InteractionCreate, str string
 }
 
 func get(str string) *http.Response {
-	fmt.Printf("GET %s", str)
 	req, _ := http.NewRequest("GET", "http://localhost:1234/"+str, nil)
 	client := &http.Client{}
 	resp, _ := client.Do(req)
 	return resp
-}
-
-func sendGif() {
-
 }
 
 func send(str string) *http.Response {
@@ -502,11 +472,100 @@ func send(str string) *http.Response {
 	q.Add("action", str)
 	q.Add("val", strconv.Itoa(int(value)))
 	req.URL.RawQuery = q.Encode()
-	fmt.Println(req)
 	client := &http.Client{}
 	resp, _ := client.Do(req)
 	value = 1
 	return resp
+}
+
+func ordinal(i int) string {
+	j := i % 10
+	str := strconv.Itoa(i)
+	if j == 1 {
+		return str + "st"
+	}
+	if j == 2 {
+		return str + "nd"
+	}
+	if j == 3 {
+		return str + "rd"
+	}
+	return str + "th"
+}
+
+func printLeaderboard() string {
+	var sb strings.Builder
+	sort.Slice(leaderboard.Entries, func(i, j int) bool {
+		return leaderboard.Entries[i].Keystrokes > leaderboard.Entries[j].Keystrokes
+	})
+	max := 10
+	if len(leaderboard.Entries) < 10 {
+		max = len(leaderboard.Entries)
+	}
+	for i := 0; i < max; i++ {
+		sb.WriteString("" + ordinal(i+1) + ": " +
+			leaderboard.Entries[i].Name + " with " +
+			strconv.Itoa(leaderboard.Entries[i].Keystrokes) + " commands sent!\n")
+	}
+	return sb.String()
+}
+
+func saveLeaderboard() {
+	file, err := json.Marshal(&leaderboard)
+	check(err)
+	_ = ioutil.WriteFile("leaderboard.json", file, 0644)
+}
+
+func press(s *discordgo.Session, i *discordgo.InteractionCreate, str string) {
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+	if len(i.ApplicationCommandData().Options) == 1 {
+		value = i.ApplicationCommandData().Options[0].IntValue()
+	}
+	send(str)
+	resp := send("screen")
+	bs, err := ioutil.ReadAll(resp.Body)
+	check(err)
+	hexstr := string(bs)
+	data, err := hex.DecodeString(hexstr)
+	check(err)
+	reader := bytes.NewReader(data)
+	embeds := []*discordgo.MessageEmbed{
+		{
+			Image: &discordgo.MessageEmbedImage{
+				URL:    "attachment://screen.png",
+				Width:  320,
+				Height: 288,
+			},
+			Footer: &discordgo.MessageEmbedFooter{
+				Text: "https://github.com/OFFTKP/pokemon-bot",
+			},
+		},
+	}
+	// Add score to leaderboard
+	if i.Member.User != nil {
+		found := false
+		for j := 0; j < len(leaderboard.Entries); j++ {
+			if leaderboard.Entries[j].Name == i.Member.User.Username {
+				leaderboard.Entries[j].Keystrokes += 1
+				found = true
+				break
+			}
+		}
+		if !found {
+			leaderboard.Entries = append(leaderboard.Entries, LeaderboardEntry{
+				Name:       i.Member.User.Username,
+				Keystrokes: 1,
+			})
+		}
+	}
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Embeds: &embeds,
+		Files: []*discordgo.File{
+			{Name: "screen.png", Reader: reader},
+		},
+	})
 }
 
 func send_val(str string, val string) []byte {
@@ -516,11 +575,9 @@ func send_val(str string, val string) []byte {
 	q.Add("action", str)
 	q.Add("val", val)
 	req.URL.RawQuery = q.Encode()
-	fmt.Println(req)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	defer resp.Body.Close()
-	fmt.Println(resp)
 	check(err)
 	b, err := io.ReadAll(resp.Body)
 	// b, err := ioutil.ReadAll(resp.Body)  Go.1.15 and earlier
@@ -533,6 +590,32 @@ func send_val(str string, val string) []byte {
 func check(err error) {
 	if err != nil {
 		log.Fatalln(err)
+	}
+}
+
+func RSF(path string) string {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func init() {
+	flag.Parse()
+	var err error
+	session, err = discordgo.New("Bot " + *BotToken)
+	if err != nil {
+		log.Fatalf("Invalid bot parameters: %v", err)
+	}
+	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
+			h(s, i)
+		}
+	})
+	json.Unmarshal([]byte(RSF("leaderboard.json")), &leaderboard)
+	if leaderboard.Entries == nil {
+		leaderboard.Entries = make([]LeaderboardEntry, 0)
 	}
 }
 
@@ -553,4 +636,5 @@ func main() {
 	signal.Notify(stop, os.Interrupt)
 	log.Println("Press Ctrl+C to exit")
 	<-stop
+	saveLeaderboard()
 }
