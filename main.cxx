@@ -39,7 +39,6 @@ Command serialize(std::string command) {
 }
 
 int main(int argc, char** argv) {
-
     if (argc != 2) {
         std::cerr << "Invalid number of arguments" << std::endl;
         return 1;
@@ -96,6 +95,11 @@ int main(int argc, char** argv) {
         std::lock_guard lg(the_mutex);
         gb.ExecuteCommand(Command::StartSave);
         res.set_content("started save", "text/plain");
+    });
+    svr.Get("/gif", [&gb, &the_mutex](const httplib::Request & req, httplib::Response &res) {
+        std::lock_guard lg(the_mutex);
+        gb.ExecuteCommand(Command::GetGif);
+        res.set_content("saved gif", "text/plain");
     });
     svr.listen("localhost", 1234);
 }

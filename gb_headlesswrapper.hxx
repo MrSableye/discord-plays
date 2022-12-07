@@ -8,6 +8,9 @@
 #include <GameboyTKP/gb_apu.h>
 #include <GameboyTKP/gb_apu_ch.h>
 
+#define GifFrameCount 60
+
+using Frame = std::array<uint8_t, 320 * 288 * 4>;
 enum class Command {
     Reset,
     Left,
@@ -33,6 +36,7 @@ enum class Command {
     GetMap,
     StartSave,
     Spam,
+    GetGif,
 };
 
 class Gameboy {
@@ -64,6 +68,8 @@ private:
     GameboyKeys direction_keys_;
     GameboyKeys action_keys_;
     uint8_t& interrupt_flag_;
+    std::array<std::unique_ptr<Frame>, GifFrameCount> last_minute_frames_;
+    int last_minute_frame_index_ = 0;
 
     void reset();
     void frame();
@@ -71,6 +77,7 @@ private:
     void screenshot();
     void save();
     void load();
+    void get_gif();
     void get_party();
     void get_balls();
     void get_trainer();

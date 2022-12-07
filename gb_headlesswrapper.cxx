@@ -2,6 +2,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 #include "json.hpp"
+#include "gif.h"
 #include <fstream>
 #include <vector>
 #include <iostream>
@@ -27,14 +28,14 @@ using namespace nlohmann;
             for (int i = 0; i < 5; i++) \
                 ExecuteCommand(Command::Frame); \
             bus_.DirectionKeys |= (1UL << index); \
-            ExecuteCommand(Command::Second); }
+            ExecuteCommand(Command::Screenshot); }
 
 #define action(index) { bus_.ActionKeys &= (~(1UL << index)); \
             interrupt_flag_ |= IFInterrupt::JOYPAD; \
             for (int i = 0; i < 5; i++) \
                 ExecuteCommand(Command::Frame); \
             bus_.ActionKeys |= (1UL << index); \
-            ExecuteCommand(Command::Second); }
+            ExecuteCommand(Command::Screenshot); }
 
 struct Pokemon {
     uint8_t type;
@@ -78,12 +79,15 @@ Gameboy::Gameboy(std::string path) :
     ppu_(bus_, nullptr),
     timer_(channel_array_ptr_, bus_),
     cpu_(bus_, ppu_, apu_, timer_),
-    interrupt_flag_(bus_.GetReference(addr_if))
+    interrupt_flag_(bus_.GetReference(addr_if)),
+    last_minute_frames_()
 {
     apu_.UseSound = false;
     bus_.LoadCartridge(path);
     ppu_.UseCGB = bus_.UseCGB;
     reset();
+    for (auto& ptr : last_minute_frames_)
+        ptr = std::make_unique<Frame>();
 }
 
 void Gameboy::ExecuteCommand(Command command) {
@@ -115,6 +119,8 @@ void Gameboy::ExecuteCommand(Command command) {
                 count = 1;
             for (int i = 0; i < count; i++)
 			    action(3)
+            ExecuteCommand(Command::Second);
+            ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::Select: {
@@ -123,6 +129,8 @@ void Gameboy::ExecuteCommand(Command command) {
                 count = 1;
             for (int i = 0; i < count; i++)
                 action(2);
+            ExecuteCommand(Command::Second);
+            ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::B: {
@@ -131,6 +139,8 @@ void Gameboy::ExecuteCommand(Command command) {
                 count = 1;
             for (int i = 0; i < count; i++)
                 action(1);
+            ExecuteCommand(Command::Second);
+            ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::A: {
@@ -139,6 +149,8 @@ void Gameboy::ExecuteCommand(Command command) {
                 count = 1;
             for (int i = 0; i < count; i++)
                 action(0);
+            ExecuteCommand(Command::Second);
+            ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::Down: {
@@ -147,6 +159,8 @@ void Gameboy::ExecuteCommand(Command command) {
                 count = 1;
             for (int i = 0; i < count; i++)
                 direction(3);
+            ExecuteCommand(Command::Second);
+            ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::Up: {
@@ -155,6 +169,8 @@ void Gameboy::ExecuteCommand(Command command) {
                 count = 1;
             for (int i = 0; i < count; i++)
                 direction(2);
+            ExecuteCommand(Command::Second);
+            ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::Left: {
@@ -163,6 +179,8 @@ void Gameboy::ExecuteCommand(Command command) {
                 count = 1;
             for (int i = 0; i < count; i++)
                 direction(1);
+            ExecuteCommand(Command::Second);
+            ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::Right: {
@@ -171,11 +189,17 @@ void Gameboy::ExecuteCommand(Command command) {
                 count = 1;
             for (int i = 0; i < count; i++)
                 direction(0);
+            ExecuteCommand(Command::Second);
+            ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::Save: {
             save();
             bus_.battery_save();
+            break;
+        }
+        case Command::GetGif: {
+            get_gif();
             break;
         }
         case Command::StartSave: {
@@ -317,7 +341,21 @@ void Gameboy::screenshot() {
     auto img_s = to_image_small(data);
     auto img_b = scale(img_s);
     auto data_b = to_bytes(img_b);
+    auto& cur_arr = *last_minute_frames_[last_minute_frame_index_++ % GifFrameCount];
+    std::copy_n(data_b.begin(), 320 * 288 * 4, cur_arr.begin());
     stbi_write_png_to_func(&callback, &res_, 320, 288, 4, data_b.data(), 0);
+}
+
+void Gameboy::get_gif() {
+    int width = 320;
+    int height = 288;
+    int delay = 1;
+    GifWriter gw;
+    GifBegin(&gw, "out.gif", width, height, delay);
+    for (int i = 0; i < GifFrameCount; i++) {
+        GifWriteFrame(&gw, last_minute_frames_.at((last_minute_frame_index_ + i) % GifFrameCount)->data(), width, height, delay);
+    }
+    GifEnd(&gw);
 }
 
 void Gameboy::save() {

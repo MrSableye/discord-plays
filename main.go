@@ -195,6 +195,10 @@ var (
 			Description: "See general trainer description",
 		},
 		{
+			Name:        "summary",
+			Description: "Show a gif of the last few frames",
+		},
+		{
 			Name:        "help",
 			Description: "Display help dialogue",
 		},
@@ -309,6 +313,37 @@ var (
 					},
 					Files: []*discordgo.File{
 						{Name: "screen.png", Reader: reader},
+					},
+				},
+			})
+		},
+		"summary": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			get("gif")
+			// bs, err := ioutil.ReadAll(resp.Body)
+			// check(err)
+			// hexstr := string(bs)
+			// data, err := hex.DecodeString(hexstr)
+			// check(err)
+			data, err := ioutil.ReadFile("out.gif")
+			if err != nil {
+				return
+			}
+			reader := bytes.NewReader(data)
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Image: &discordgo.MessageEmbedImage{
+								URL: "attachment://my.gif",
+							},
+							Footer: &discordgo.MessageEmbedFooter{
+								Text: "https://github.com/OFFTKP/pokemon-bot",
+							},
+						},
+					},
+					Files: []*discordgo.File{
+						{Name: "my.gif", Reader: reader},
 					},
 				},
 			})
