@@ -1,1 +1,5 @@
 GameboyTKP/** linguist-vendored
+json.hpp linguist-vendored
+gif.h linguist-vendored
+httplib.h linguist-vendored
+stb_image_write.h linguist-vendored
