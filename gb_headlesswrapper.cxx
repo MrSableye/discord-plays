@@ -93,10 +93,10 @@ Gameboy::Gameboy(std::string path) :
 }
 
 void Gameboy::ExecuteCommand(Command command) {
-    uint8_t val = 0; // Text speed -> instant
-    val |= 0x40; // Battle -> Set
-    val |= 0x80; // Battle -> Scene
-    bus_.Write(0xD199, val); // Options address
+    // uint8_t val = 0; // Text speed -> instant
+    // val |= 0x40; // Battle -> Set
+    // val |= 0x80; // Battle -> Scene
+    // bus_.Write(0xD199, val); // Options address
     switch (command) {
         case Command::Reset: {
             reset();
