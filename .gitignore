@@ -15,3 +15,7 @@ backup/
 *.out
 *.gif
 callgrind.out.*
+*.json
+*.png
+*.mod
+*.sum

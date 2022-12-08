@@ -56,7 +56,6 @@ int main(int argc, char** argv) {
     gb.ExecuteCommand(Command::A);
     
     gb.SetMemory(0xD199, 0); // Set text speed to instant
-    Command com = Command::Frame;
     httplib::Server svr;
     std::mutex the_mutex;
     svr.Get("/req", [&gb, &the_mutex](const httplib::Request & req, httplib::Response &res) {

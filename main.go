@@ -50,6 +50,7 @@ type GameData struct {
 
 type LeaderboardEntry struct {
 	Name       string
+	Id         string
 	Keystrokes int
 }
 
@@ -63,6 +64,116 @@ var processStdin io.WriteCloser
 var summaryMutex sync.Mutex
 var leaderboard Leaderboard
 
+type ButtonType int
+
+const (
+	ButtonLeft ButtonType = iota
+	ButtonRight
+	ButtonUp
+	ButtonDown
+	ButtonA
+	ButtonB
+	ButtonStart
+	ButtonSelect
+)
+
+var buttonComponents []discordgo.MessageComponent = []discordgo.MessageComponent{
+	discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    " ",
+				Style:    discordgo.SecondaryButton,
+				Disabled: true,
+				CustomID: "disabled_tl",
+			},
+			discordgo.Button{
+				Label:    "Up",
+				Style:    discordgo.PrimaryButton,
+				CustomID: "press_up",
+			},
+			discordgo.Button{
+				Label:    " ",
+				Style:    discordgo.SecondaryButton,
+				Disabled: true,
+				CustomID: "disabled_tr",
+			},
+			discordgo.Button{
+				Label:    "A",
+				Style:    discordgo.SuccessButton,
+				CustomID: "press_a",
+			},
+			discordgo.Button{
+				Label:    " ",
+				Style:    discordgo.SecondaryButton,
+				Disabled: true,
+				CustomID: "disabled_rr",
+			},
+		},
+	},
+	discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "Left",
+				Style:    discordgo.PrimaryButton,
+				CustomID: "press_left",
+			},
+			discordgo.Button{
+				Label:    " ",
+				Style:    discordgo.SecondaryButton,
+				Disabled: true,
+				CustomID: "disabled_center",
+			},
+			discordgo.Button{
+				Label:    "Right",
+				Style:    discordgo.PrimaryButton,
+				CustomID: "press_right",
+			},
+			discordgo.Button{
+				Label:    " ",
+				Style:    discordgo.SecondaryButton,
+				Disabled: true,
+				CustomID: "disabled_ll",
+			},
+			discordgo.Button{
+				Label:    "B",
+				Style:    discordgo.DangerButton,
+				CustomID: "press_b",
+			},
+		},
+	},
+	discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    " ",
+				Style:    discordgo.SecondaryButton,
+				Disabled: true,
+				CustomID: "disabled_bl",
+			},
+			discordgo.Button{
+				Label:    "Down",
+				Style:    discordgo.PrimaryButton,
+				CustomID: "press_down",
+			},
+			discordgo.Button{
+				Label:    " ",
+				Style:    discordgo.SecondaryButton,
+				Disabled: true,
+				CustomID: "disabled_br",
+			},
+			discordgo.Button{
+				Label:    "Start",
+				Style:    discordgo.PrimaryButton,
+				CustomID: "press_start",
+			},
+			discordgo.Button{
+				Label:    "Sel",
+				Style:    discordgo.PrimaryButton,
+				CustomID: "press_select",
+			},
+		},
+	},
+}
+
 var (
 	integerOptionMinValue = 2.0
 	BotToken              = flag.String("token", RSF("token.txt"), "Bot access token")
@@ -70,110 +181,6 @@ var (
 
 var (
 	commands = []*discordgo.ApplicationCommand{
-		{
-			Name:        "l",
-			Description: "Hit the left button",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "count",
-					Description: "Count to spam button (default: 1)",
-					Required:    false,
-					MaxValue:    10,
-				},
-			},
-		},
-		{
-			Name:        "r",
-			Description: "Hit the right button",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "count",
-					Description: "Count to spam button (default: 1)",
-					Required:    false,
-					MaxValue:    10,
-				},
-			},
-		},
-		{
-			Name:        "u",
-			Description: "Hit the up button",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "count",
-					Description: "Count to spam button (default: 1)",
-					Required:    false,
-					MaxValue:    10,
-				},
-			},
-		},
-		{
-			Name:        "d",
-			Description: "Hit the down button",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "count",
-					Description: "Count to spam button (default: 1)",
-					Required:    false,
-					MaxValue:    10,
-				},
-			},
-		},
-		{
-			Name:        "a",
-			Description: "Hit the A button",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "count",
-					Description: "Count to spam button (default: 1)",
-					Required:    false,
-					MaxValue:    10,
-				},
-			},
-		},
-		{
-			Name:        "b",
-			Description: "Hit the B button",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "count",
-					Description: "Count to spam button (default: 1)",
-					Required:    false,
-					MaxValue:    10,
-				},
-			},
-		},
-		{
-			Name:        "start",
-			Description: "Hit the Start button",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "count",
-					Description: "Count to spam button (default: 1)",
-					Required:    false,
-					MaxValue:    10,
-				},
-			},
-		},
-		{
-			Name:        "select",
-			Description: "Hit the Select button",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "count",
-					Description: "Count to spam button (default: 1)",
-					Required:    false,
-					MaxValue:    10,
-				},
-			},
-		},
 		{
 			Name:        "screen",
 			Description: "Get current screen",
@@ -214,28 +221,7 @@ var (
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"screen": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			respond(s, i)
-		},
-		"start": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			press(s, i, "start")
-		},
-		"l": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			press(s, i, "l")
-		},
-		"r": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			press(s, i, "r")
-		},
-		"u": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			press(s, i, "u")
-		},
-		"d": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			press(s, i, "d")
-		},
-		"a": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			press(s, i, "a")
-		},
-		"b": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			press(s, i, "b")
+			sendScreenButtons(s, i)
 		},
 		"trainer": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			ret := get("trainer")
@@ -374,15 +360,11 @@ var (
 			})
 			check(err)
 		},
-		"select": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			press(s, i, "select")
-		},
 		"help": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			displayHelp(s, i)
 		},
 		"save": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			get("save")
-			respond(s, i)
 			saveLeaderboard()
 		},
 		"leaderboard": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -402,34 +384,55 @@ var (
 	}
 )
 
-func respond(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	resp := send("screen")
-	bs, err := ioutil.ReadAll(resp.Body)
-	check(err)
-	hexstr := string(bs)
-	data, err := hex.DecodeString(hexstr)
-	check(err)
-	reader := bytes.NewReader(data)
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{
-				{
-					Image: &discordgo.MessageEmbedImage{
-						URL:    "attachment://screen.png",
-						Width:  320,
-						Height: 288,
-					},
-					Footer: &discordgo.MessageEmbedFooter{
-						Text: "https://github.com/OFFTKP/pokemon-bot",
-					},
-				},
-			},
-			Files: []*discordgo.File{
-				{Name: "screen.png", Reader: reader},
-			},
+var (
+	componentsHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+		"press_left": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			press(s, i, ButtonLeft)
 		},
-	})
+		"press_right": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			press(s, i, ButtonRight)
+		},
+		"press_up": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			press(s, i, ButtonUp)
+		},
+		"press_down": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			press(s, i, ButtonDown)
+		},
+		"press_a": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			press(s, i, ButtonA)
+		},
+		"press_b": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			press(s, i, ButtonB)
+		},
+		"press_start": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			press(s, i, ButtonStart)
+		},
+		"press_select": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			press(s, i, ButtonSelect)
+		},
+	}
+)
+
+func (b *ButtonType) String() string {
+	switch *b {
+	case ButtonLeft:
+		return "l"
+	case ButtonRight:
+		return "r"
+	case ButtonUp:
+		return "u"
+	case ButtonDown:
+		return "d"
+	case ButtonA:
+		return "a"
+	case ButtonB:
+		return "b"
+	case ButtonStart:
+		return "start"
+	case ButtonSelect:
+		return "select"
+	}
+	return ""
 }
 
 func displayHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -516,14 +519,17 @@ func saveLeaderboard() {
 	_ = ioutil.WriteFile("leaderboard.json", file, 0644)
 }
 
-func press(s *discordgo.Session, i *discordgo.InteractionCreate, str string) {
+func sendScreenButtons(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Components: buttonComponents,
+		},
 	})
-	if len(i.ApplicationCommandData().Options) == 1 {
-		value = i.ApplicationCommandData().Options[0].IntValue()
-	}
-	send(str)
+}
+
+func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
+	send(button.String())
 	resp := send("screen")
 	bs, err := ioutil.ReadAll(resp.Body)
 	check(err)
@@ -531,18 +537,6 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, str string) {
 	data, err := hex.DecodeString(hexstr)
 	check(err)
 	reader := bytes.NewReader(data)
-	embeds := []*discordgo.MessageEmbed{
-		{
-			Image: &discordgo.MessageEmbedImage{
-				URL:    "attachment://screen.png",
-				Width:  320,
-				Height: 288,
-			},
-			Footer: &discordgo.MessageEmbedFooter{
-				Text: "https://github.com/OFFTKP/pokemon-bot",
-			},
-		},
-	}
 	// Add score to leaderboard
 	if i.Member.User != nil {
 		found := false
@@ -560,10 +554,23 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, str string) {
 			})
 		}
 	}
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-		Embeds: &embeds,
-		Files: []*discordgo.File{
-			{Name: "screen.png", Reader: reader},
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{
+				{
+					Image: &discordgo.MessageEmbedImage{
+						URL: "attachment://screen.png",
+					},
+					Footer: &discordgo.MessageEmbedFooter{
+						Text: "https://github.com/OFFTKP/pokemon-bot\n*Last button press (" + button.String() + ") by: " + i.Member.User.Username + "*",
+					},
+				},
+			},
+			Files: []*discordgo.File{
+				{Name: "screen.png", Reader: reader},
+			},
+			Components: buttonComponents,
 		},
 	})
 }
@@ -609,8 +616,16 @@ func init() {
 		log.Fatalf("Invalid bot parameters: %v", err)
 	}
 	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
-			h(s, i)
+		switch i.Type {
+		case discordgo.InteractionApplicationCommand:
+			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
+				h(s, i)
+			}
+		case discordgo.InteractionMessageComponent:
+
+			if h, ok := componentsHandlers[i.MessageComponentData().CustomID]; ok {
+				h(s, i)
+			}
 		}
 	})
 	json.Unmarshal([]byte(RSF("leaderboard.json")), &leaderboard)

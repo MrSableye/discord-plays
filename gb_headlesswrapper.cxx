@@ -28,6 +28,7 @@ using namespace nlohmann;
             for (int i = 0; i < 5; i++) \
                 ExecuteCommand(Command::Frame); \
             bus_.DirectionKeys |= (1UL << index); \
+            ExecuteCommand(Command::Frame); \
             ExecuteCommand(Command::Screenshot);}
 
 #define action(index) { bus_.ActionKeys &= (~(1UL << index)); \
@@ -35,6 +36,7 @@ using namespace nlohmann;
             for (int i = 0; i < 5; i++) \
                 ExecuteCommand(Command::Frame); \
             bus_.ActionKeys |= (1UL << index); \
+            ExecuteCommand(Command::Frame); \
             ExecuteCommand(Command::Screenshot); }
 
 struct Pokemon {
