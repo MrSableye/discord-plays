@@ -2,9 +2,12 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/bits"
@@ -371,10 +374,16 @@ var (
 			hexstr := string(bs)
 			data, err := hex.DecodeString(hexstr)
 			check(err)
-			reader := bytes.NewReader(data)
+			var out bytes.Buffer
+			gz := gzip.NewWriter(&out)
+			_, err = gz.Write(data)
+			check(err)
+			err = gz.Close()
+			check(err)
+			var reader io.Reader = &out
 			s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 				Files: []*discordgo.File{
-					{Name: "save.sav", Reader: reader},
+					{Name: "save.sav.gz", Reader: reader},
 				},
 			})
 			saveLeaderboard()
@@ -615,7 +624,10 @@ func init() {
 	})
 	json.Unmarshal([]byte(RSF("leaderboard.json")), &leaderboard)
 	if leaderboard.Entries == nil {
+		fmt.Println("Leaderboard is nil, creating new one")
 		leaderboard.Entries = make([]LeaderboardEntry, 0)
+	} else {
+		fmt.Println(printLeaderboard())
 	}
 }
 

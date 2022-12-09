@@ -13,7 +13,7 @@ func check(err error) {
 
 func RSF(path string) string {
 	b, err := ioutil.ReadFile(path)
-	if err == nil {
+	if err != nil {
 		return ""
 	}
 	return string(b)
