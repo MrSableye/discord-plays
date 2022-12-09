@@ -90,13 +90,13 @@ Gameboy::Gameboy(std::string path) :
     reset();
     for (auto& ptr : last_minute_frames_)
         ptr = std::make_unique<Frame>();
+    uint8_t val = 0; // Text speed -> instant
+    val |= 0x40; // Battle -> Set
+    val |= 0x80; // Battle -> Scene
+    bus_.Write(0xD199, val); // Options address
 }
 
 void Gameboy::ExecuteCommand(Command command) {
-    // uint8_t val = 0; // Text speed -> instant
-    // val |= 0x40; // Battle -> Set
-    // val |= 0x80; // Battle -> Scene
-    // bus_.Write(0xD199, val); // Options address
     switch (command) {
         case Command::Reset: {
             reset();
@@ -235,6 +235,18 @@ void Gameboy::ExecuteCommand(Command command) {
             ExecuteCommand(Command::A);
             ExecuteCommand(Command::Frame);
             bus_.battery_save();
+            std::stringstream ss;
+            ss << std::hex;
+            if (bus_.cartridge_.GetRamSize() != 0) {
+				for (int i = 0; i < bus_.cartridge_.GetRamSize(); ++i) {
+                    for (int j = 0; j < 0x2000; j++)
+					    ss << std::setw(2) << std::setfill('0') << (int)bus_.ram_banks_[i][j];
+				}
+			} else {
+				for (int j = 0; j < 0x2000; j++)
+                    ss << std::setw(2) << std::setfill('0') << (int)bus_.ram_banks_[0][j];
+			}
+            res_ = ss.str();
             break;
         }
         case Command::Load: {
@@ -268,7 +280,7 @@ void Gameboy::ExecuteCommand(Command command) {
             ExecuteCommand(Command::A);
             ExecuteCommand(Command::Right);
             ExecuteCommand(Command::Frame);
-            ExecuteCommand(Command::Screenshot);
+            ExecuteCommand(Command::ScreenshotPNG);
             ExecuteCommand(Command::B);
             ExecuteCommand(Command::B);
             break;

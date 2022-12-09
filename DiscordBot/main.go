@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"flag"
-	"io"
 	"io/ioutil"
 	"log"
 	"math/bits"
@@ -60,7 +59,6 @@ type Leaderboard struct {
 
 var session *discordgo.Session
 var value int64
-var processStdin io.WriteCloser
 var summaryMutex sync.Mutex
 var leaderboard Leaderboard
 
@@ -175,8 +173,7 @@ var buttonComponents []discordgo.MessageComponent = []discordgo.MessageComponent
 }
 
 var (
-	integerOptionMinValue = 2.0
-	BotToken              = flag.String("token", RSF("token.txt"), "Bot access token")
+	BotToken = flag.String("token", RSF("token.txt"), "Bot access token")
 )
 
 var (
@@ -249,6 +246,9 @@ var (
 			check(err)
 		},
 		"map": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+			})
 			resp := get("map")
 			bs, err := ioutil.ReadAll(resp.Body)
 			check(err)
@@ -256,22 +256,20 @@ var (
 			data, err := hex.DecodeString(hexstr)
 			check(err)
 			reader := bytes.NewReader(data)
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Image: &discordgo.MessageEmbedImage{
-								URL: "attachment://screen.png",
-							},
-							Footer: &discordgo.MessageEmbedFooter{
-								Text: "https://github.com/OFFTKP/pokemon-bot",
-							},
-						},
+			embeds := []*discordgo.MessageEmbed{
+				{
+					Image: &discordgo.MessageEmbedImage{
+						URL: "attachment://screen.png",
 					},
-					Files: []*discordgo.File{
-						{Name: "screen.png", Reader: reader},
+					Footer: &discordgo.MessageEmbedFooter{
+						Text: "https://github.com/OFFTKP/pokemon-bot",
 					},
+				},
+			}
+			s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Embeds: &embeds,
+				Files: []*discordgo.File{
+					{Name: "screen.png", Reader: reader},
 				},
 			})
 		},
@@ -364,7 +362,32 @@ var (
 			displayHelp(s, i)
 		},
 		"save": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			get("save")
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+			})
+			resp := get("save")
+			bs, err := ioutil.ReadAll(resp.Body)
+			check(err)
+			hexstr := string(bs)
+			data, err := hex.DecodeString(hexstr)
+			check(err)
+			reader := bytes.NewReader(data)
+			embeds := []*discordgo.MessageEmbed{
+				{
+					Image: &discordgo.MessageEmbedImage{
+						URL: "attachment://screen.png",
+					},
+					Footer: &discordgo.MessageEmbedFooter{
+						Text: "https://github.com/OFFTKP/pokemon-bot",
+					},
+				},
+			}
+			s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Embeds: &embeds,
+				Files: []*discordgo.File{
+					{Name: "screen.png", Reader: reader},
+				},
+			})
 			saveLeaderboard()
 		},
 		"leaderboard": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -385,7 +408,7 @@ var (
 )
 
 var (
-	componentsHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+	componentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"press_left": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			press(s, i, ButtonLeft)
 		},
@@ -416,21 +439,21 @@ var (
 func (b *ButtonType) String() string {
 	switch *b {
 	case ButtonLeft:
-		return "l"
+		return "move_left"
 	case ButtonRight:
-		return "r"
+		return "move_right"
 	case ButtonUp:
-		return "u"
+		return "move_up"
 	case ButtonDown:
-		return "d"
+		return "move_down"
 	case ButtonA:
-		return "a"
+		return "action_a"
 	case ButtonB:
-		return "b"
+		return "action_b"
 	case ButtonStart:
-		return "start"
+		return "action_start"
 	case ButtonSelect:
-		return "select"
+		return "action_select"
 	}
 	return ""
 }
@@ -452,16 +475,6 @@ func displayHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	check(err)
 }
 
-func respondMsg(s *discordgo.Session, i *discordgo.InteractionCreate, str string) {
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: str,
-		},
-	})
-	check(err)
-}
-
 func get(str string) *http.Response {
 	req, _ := http.NewRequest("GET", "http://localhost:1234/"+str, nil)
 	client := &http.Client{}
@@ -470,14 +483,9 @@ func get(str string) *http.Response {
 }
 
 func send(str string) *http.Response {
-	req, _ := http.NewRequest("GET", "http://localhost:1234/req", nil)
-	q := req.URL.Query()
-	q.Add("action", str)
-	q.Add("val", strconv.Itoa(int(value)))
-	req.URL.RawQuery = q.Encode()
+	req, _ := http.NewRequest("GET", "http://localhost:1234/"+str, nil)
 	client := &http.Client{}
 	resp, _ := client.Do(req)
-	value = 1
 	return resp
 }
 
@@ -521,16 +529,37 @@ func saveLeaderboard() {
 
 func sendScreenButtons(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Components: buttonComponents,
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+	resp := get("screen")
+	bs, err := ioutil.ReadAll(resp.Body)
+	check(err)
+	hexstr := string(bs)
+	data, err := hex.DecodeString(hexstr)
+	check(err)
+	reader := bytes.NewReader(data)
+	embeds := []*discordgo.MessageEmbed{
+		{
+			Image: &discordgo.MessageEmbedImage{
+				URL: "attachment://screen.png",
+			},
+			Footer: &discordgo.MessageEmbedFooter{
+				Text: "https://github.com/OFFTKP/pokemon-bot",
+			},
 		},
+	}
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Embeds: &embeds,
+		Files: []*discordgo.File{
+			{Name: "screen.png", Reader: reader},
+		},
+		Components: &buttonComponents,
 	})
 }
 
 func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
 	send(button.String())
-	resp := send("screen")
+	resp := get("screen")
 	bs, err := ioutil.ReadAll(resp.Body)
 	check(err)
 	hexstr := string(bs)
@@ -575,39 +604,6 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	})
 }
 
-func send_val(str string, val string) []byte {
-	req, err := http.NewRequest("GET", "http://localhost:1234/req", nil)
-	check(err)
-	q := req.URL.Query()
-	q.Add("action", str)
-	q.Add("val", val)
-	req.URL.RawQuery = q.Encode()
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	defer resp.Body.Close()
-	check(err)
-	b, err := io.ReadAll(resp.Body)
-	// b, err := ioutil.ReadAll(resp.Body)  Go.1.15 and earlier
-	if err != nil {
-		log.Fatalln(err)
-	}
-	return b
-}
-
-func check(err error) {
-	if err != nil {
-		log.Fatalln(err)
-	}
-}
-
-func RSF(path string) string {
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	return string(b)
-}
-
 func init() {
 	flag.Parse()
 	var err error
@@ -623,7 +619,7 @@ func init() {
 			}
 		case discordgo.InteractionMessageComponent:
 
-			if h, ok := componentsHandlers[i.MessageComponentData().CustomID]; ok {
+			if h, ok := componentHandlers[i.MessageComponentData().CustomID]; ok {
 				h(s, i)
 			}
 		}
@@ -635,16 +631,22 @@ func init() {
 }
 
 func main() {
+	pong := get("ping")
+	if pong == nil {
+		log.Fatalf("GameboyWebserver not running! Please start GameboyWebserver first!")
+		return
+	}
+	bs, err := ioutil.ReadAll(pong.Body)
+	check(err)
+	if string(bs) != "pong" {
+		log.Fatalf("GameboyWebserver not running! Please start GameboyWebserver first!%s", string(bs))
+		return
+	}
 	session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	})
 	session.Open()
-	// cmds, _ := session.ApplicationCommands(session.State.User.ID, "GuildIdToDeleteCommands")
-	// fmt.Printf("Old coommands size: %d\n", len(cmds))
-	// for _, cmd := range cmds {
-	// 	session.ApplicationCommandDelete(session.State.User.ID, "GuildIdToDeleteCommands", cmd.ID)
-	// }
-	_, err := session.ApplicationCommandBulkOverwrite(session.State.User.ID, "", commands)
+	_, err = session.ApplicationCommandBulkOverwrite(session.State.User.ID, "", commands)
 	check(err)
 	defer session.Close()
 	stop := make(chan os.Signal, 1)
