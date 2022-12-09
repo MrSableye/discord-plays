@@ -372,20 +372,9 @@ var (
 			data, err := hex.DecodeString(hexstr)
 			check(err)
 			reader := bytes.NewReader(data)
-			embeds := []*discordgo.MessageEmbed{
-				{
-					Image: &discordgo.MessageEmbedImage{
-						URL: "attachment://screen.png",
-					},
-					Footer: &discordgo.MessageEmbedFooter{
-						Text: "https://github.com/OFFTKP/pokemon-bot",
-					},
-				},
-			}
 			s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-				Embeds: &embeds,
 				Files: []*discordgo.File{
-					{Name: "screen.png", Reader: reader},
+					{Name: "save.sav", Reader: reader},
 				},
 			})
 			saveLeaderboard()
@@ -522,7 +511,7 @@ func printLeaderboard() string {
 }
 
 func saveLeaderboard() {
-	file, err := json.Marshal(&leaderboard)
+	file, err := json.Marshal(leaderboard)
 	check(err)
 	_ = ioutil.WriteFile("leaderboard.json", file, 0644)
 }
