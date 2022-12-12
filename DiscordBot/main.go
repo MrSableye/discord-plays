@@ -288,8 +288,9 @@ var (
 			// hexstr := string(bs)
 			// data, err := hex.DecodeString(hexstr)
 			// check(err)
-			data, err := ioutil.ReadFile("out.gif")
+			data, err := ioutil.ReadFile("../out.gif")
 			if err != nil {
+				fmt.Println("Error while loading gif")
 				return
 			}
 			reader := bytes.NewReader(data)
