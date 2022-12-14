@@ -129,18 +129,22 @@ func exit() {
 func main() {
 	configFile = RSF("config.json")
 	json.Unmarshal([]byte(configFile), &settings)
-	for {
-		showMenu()
-		var input int
-		fmt.Scan(&input)
-		switch input {
-		case 1:
-			run()
-		case 2:
-			configure()
-		case 3:
-			exit()
+	if configFile != "" {
+		run()
+	} else {
+		for {
+			showMenu()
+			var input int
+			fmt.Scan(&input)
+			switch input {
+			case 1:
+				run()
+			case 2:
+				configure()
+			case 3:
+				exit()
+			}
+			fmt.Println("Going back to menu:")
 		}
-		fmt.Println("Going back to menu:")
 	}
 }
