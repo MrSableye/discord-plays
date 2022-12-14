@@ -59,6 +59,7 @@ type Leaderboard struct {
 	Entries []LeaderboardEntry
 }
 
+var bannedPlayerIds []string
 var session *discordgo.Session
 var value int64
 var summaryMutex sync.Mutex
@@ -272,6 +273,11 @@ var (
 			})
 		},
 		"summary": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			for j := 0; j < len(bannedPlayerIds); j++ {
+				if bannedPlayerIds[j] == i.Member.User.ID {
+					return
+				}
+			}
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 			})
@@ -361,6 +367,11 @@ var (
 			displayHelp(s, i)
 		},
 		"save": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			for j := 0; j < len(bannedPlayerIds); j++ {
+				if bannedPlayerIds[j] == i.Member.User.ID {
+					return
+				}
+			}
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 			})
@@ -552,6 +563,22 @@ func sendScreenButtons(s *discordgo.Session, i *discordgo.InteractionCreate) {
 }
 
 func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
+	for j := 0; j < len(bannedPlayerIds); j++ {
+		if bannedPlayerIds[j] == i.Member.User.ID {
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Title:       "Banned",
+							Description: "You have been banned from using this bot. (lol)",
+						},
+					},
+				},
+			})
+			return
+		}
+	}
 	send(button.String())
 	resp := get("screen")
 	bs, err := ioutil.ReadAll(resp.Body)
@@ -599,6 +626,10 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 }
 
 func RunBot(BotToken string) {
+	bannedJson := RSF("banned.json")
+	if bannedJson != "" {
+		json.Unmarshal([]byte(bannedJson), &bannedPlayerIds)
+	}
 	var err error
 	session, err = discordgo.New("Bot " + BotToken)
 	if err != nil {
