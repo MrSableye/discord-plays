@@ -27,10 +27,13 @@ Useful commands:
 ## Instructions:
 To add this bot to your server, follow these instructions:
 
-- Compile `GameboyWebserver` with CMake. Take note of where the executable is stored    
-- In directory `DiscordBot`, run the command `go run main.go common.go bot.go`     
+- Compile `GameboyWebserver` with CMake. Take note of where the executable is stored
+    - `cmake --build build`
+    - `cmake -B build`
+- While in directory `DiscordBot`, run the command `go run .`     
 - Using the console menu, configure the bot. Make sure the generated config.json file is correct    
-- Using the console menu, run the bot!
+- Run the bot!
+- You can run the bot in the background with `nohup go run . &` and exit the terminal, the bot won't exit.
 
 ## Consists of 3 parts:
 

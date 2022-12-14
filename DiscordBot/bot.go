@@ -61,8 +61,9 @@ type Leaderboard struct {
 }
 
 var bannedPlayerIds []string
+var admins []string
+var S map[string]string
 var session *discordgo.Session
-var value int64
 var summaryMutex sync.Mutex
 var leaderboard Leaderboard
 
@@ -79,142 +80,10 @@ const (
 	ButtonSelect
 )
 
-var buttonComponents []discordgo.MessageComponent = []discordgo.MessageComponent{
-	discordgo.ActionsRow{
-		Components: []discordgo.MessageComponent{
-			discordgo.Button{
-				Label:    " ",
-				Style:    discordgo.SecondaryButton,
-				Disabled: true,
-				CustomID: "disabled_tl",
-			},
-			discordgo.Button{
-				Label:    "⬆️",
-				Style:    discordgo.PrimaryButton,
-				CustomID: "press_up",
-			},
-			discordgo.Button{
-				Label:    " ",
-				Style:    discordgo.SecondaryButton,
-				Disabled: true,
-				CustomID: "disabled_tr",
-			},
-			discordgo.Button{
-				Label:    "🅰️",
-				Style:    discordgo.SuccessButton,
-				CustomID: "press_a",
-			},
-			discordgo.Button{
-				Label:    " ",
-				Style:    discordgo.SecondaryButton,
-				Disabled: true,
-				CustomID: "disabled_rr",
-			},
-		},
-	},
-	discordgo.ActionsRow{
-		Components: []discordgo.MessageComponent{
-			discordgo.Button{
-				Label:    "⬅️",
-				Style:    discordgo.PrimaryButton,
-				CustomID: "press_left",
-			},
-			discordgo.Button{
-				Label:    " ",
-				Style:    discordgo.SecondaryButton,
-				Disabled: true,
-				CustomID: "disabled_center",
-			},
-			discordgo.Button{
-				Label:    "➡️",
-				Style:    discordgo.PrimaryButton,
-				CustomID: "press_right",
-			},
-			discordgo.Button{
-				Label:    " ",
-				Style:    discordgo.SecondaryButton,
-				Disabled: true,
-				CustomID: "disabled_ll",
-			},
-			discordgo.Button{
-				Label:    "🅱️",
-				Style:    discordgo.DangerButton,
-				CustomID: "press_b",
-			},
-		},
-	},
-	discordgo.ActionsRow{
-		Components: []discordgo.MessageComponent{
-			discordgo.Button{
-				Label:    " ",
-				Style:    discordgo.SecondaryButton,
-				Disabled: true,
-				CustomID: "disabled_bl",
-			},
-			discordgo.Button{
-				Label:    "⬇️",
-				Style:    discordgo.PrimaryButton,
-				CustomID: "press_down",
-			},
-			discordgo.Button{
-				Label:    " ",
-				Style:    discordgo.SecondaryButton,
-				Disabled: true,
-				CustomID: "disabled_br",
-			},
-			discordgo.Button{
-				Label:    "➕",
-				Style:    discordgo.PrimaryButton,
-				CustomID: "press_start",
-			},
-			discordgo.Button{
-				Label:    "➖",
-				Style:    discordgo.PrimaryButton,
-				CustomID: "press_select",
-			},
-		},
-	},
-}
+var buttonComponents []discordgo.MessageComponent
 
 var (
-	commands = []*discordgo.ApplicationCommand{
-		{
-			Name:        "screen",
-			Description: "Get current screen",
-		},
-		{
-			Name:        "party-count",
-			Description: "See how many pokemon you currently have in the party",
-		},
-		{
-			Name:        "ball-count",
-			Description: "See how many pokeballs you currently have in total",
-		},
-		{
-			Name:        "trainer",
-			Description: "See general trainer description",
-		},
-		{
-			Name:        "summary",
-			Description: "Show a gif of the last few frames",
-		},
-		{
-			Name:        "help",
-			Description: "Display help dialogue",
-		},
-		{
-			Name:        "save",
-			Description: "Attemps to save the game by using a button sequence (Check image for confirmation)",
-		},
-		{
-			Name:        "map",
-			Description: "Display current map position",
-		},
-		{
-			Name:        "leaderboard",
-			Description: "Display the leaderboard",
-		},
-	}
+	commands []*discordgo.ApplicationCommand
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"screen": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -285,11 +154,6 @@ var (
 			summaryMutex.Lock()
 			defer summaryMutex.Unlock()
 			get("gif")
-			// bs, err := ioutil.ReadAll(resp.Body)
-			// check(err)
-			// hexstr := string(bs)
-			// data, err := hex.DecodeString(hexstr)
-			// check(err)
 			data, err := ioutil.ReadFile("../out.gif")
 			if err != nil {
 				fmt.Println("Error while loading gif")
@@ -410,6 +274,76 @@ var (
 				},
 			})
 		},
+		"poke-ban": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			contains := false
+			for j := 0; j < len(admins); j++ {
+				if admins[j] == i.Member.User.ID {
+					contains = true
+					break
+				}
+			}
+			if !contains {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: S["notAdmin"],
+					},
+				})
+				return
+			}
+			options := i.ApplicationCommandData().Options
+			b := addBanned(options[0].StringValue())
+			if b {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: SR("userBanned", i),
+					},
+				})
+			} else {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: SR("userAlreadyBanned", i),
+					},
+				})
+			}
+		},
+		"poke-unban": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			contains := false
+			for j := 0; j < len(admins); j++ {
+				if admins[j] == i.Member.User.ID {
+					contains = true
+					break
+				}
+			}
+			if !contains {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: S["notAdmin"],
+					},
+				})
+				return
+			}
+			options := i.ApplicationCommandData().Options
+			b := removeBanned(options[0].StringValue())
+			if b {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: SR("userUnbanned", i),
+					},
+				})
+			} else {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: SR("userNotBanned", i),
+					},
+				})
+			}
+		},
 	}
 )
 
@@ -515,14 +449,17 @@ func printLeaderboard() string {
 	sort.Slice(leaderboard.Entries, func(i, j int) bool {
 		return leaderboard.Entries[i].Keystrokes > leaderboard.Entries[j].Keystrokes
 	})
-	max := 10
+	max, err := strconv.Atoi(S["leaderboardEntries"])
+	if err != nil {
+		max = 10
+	}
 	if len(leaderboard.Entries) < 10 {
 		max = len(leaderboard.Entries)
 	}
 	for i := 0; i < max; i++ {
 		sb.WriteString("" + ordinal(i+1) + ": " +
 			leaderboard.Entries[i].Name + " with " +
-			strconv.Itoa(leaderboard.Entries[i].Keystrokes) + " commands sent!\n")
+			strconv.Itoa(leaderboard.Entries[i].Keystrokes) + " keys pressed!\n")
 	}
 	return sb.String()
 }
@@ -572,7 +509,7 @@ func checkBanned(s *discordgo.Session, i *discordgo.InteractionCreate) {
 					Embeds: []*discordgo.MessageEmbed{
 						{
 							Title:       "Banned",
-							Description: "You have been banned from using this bot. (lol)",
+							Description: S["bannedMessage"],
 						},
 					},
 				},
@@ -580,23 +517,75 @@ func checkBanned(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			return
 		}
 	}
-	if i.Member.JoinedAt.After(time.Now().Add(-time.Hour * 24 * 30)) {
+	days, err := strconv.Atoi(S["guildDaysConsideredTooYoung"])
+	if err != nil {
+		days = 0
+	}
+	if i.Member.JoinedAt.After(time.Now().AddDate(0, 0, -days)) {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Embeds: []*discordgo.MessageEmbed{
 					{
 						Title:       "Banned",
-						Description: "Your account is too new, adding to banned list. (lol)",
+						Description: S["bannedMessageTooNew"],
 					},
 				},
 			},
 		})
-		bannedPlayerIds = append(bannedPlayerIds, i.Member.User.ID)
-		outJson, _ := json.Marshal(bannedPlayerIds)
-		ioutil.WriteFile("banned.json", outJson, 0644)
+		addBanned(i.Member.User.ID)
 		return
 	}
+}
+
+// Gets string from strings.json and replaces variables
+func SR(str string, i *discordgo.InteractionCreate) string {
+	var options []*discordgo.ApplicationCommandInteractionDataOption = nil
+	if i.Type == discordgo.InteractionApplicationCommand || i.Type == discordgo.InteractionApplicationCommandAutocomplete {
+		options = i.ApplicationCommandData().Options
+	}
+	ret := S[str]
+	ret = strings.ReplaceAll(ret, "%USER%", i.Member.User.Username)
+	ret = strings.ReplaceAll(ret, "%ID%", i.Member.User.ID)
+	ret = strings.ReplaceAll(ret, "%DATE%", time.Now().Format("2006-01-02"))
+	if options != nil {
+		ret = strings.ReplaceAll(ret, "%OPTION%", options[0].StringValue())
+	}
+	return ret
+}
+
+func addBanned(id string) bool {
+	found := false
+	for i := 0; i < len(bannedPlayerIds); i++ {
+		if bannedPlayerIds[i] == id {
+			found = true
+			break
+		}
+	}
+	if found {
+		return false
+	}
+	bannedPlayerIds = append(bannedPlayerIds, id)
+	outJson, _ := json.Marshal(bannedPlayerIds)
+	ioutil.WriteFile("banned.json", outJson, 0644)
+	return true
+}
+
+func removeBanned(id string) bool {
+	found := false
+	for i := 0; i < len(bannedPlayerIds); i++ {
+		if bannedPlayerIds[i] == id {
+			bannedPlayerIds = append(bannedPlayerIds[:i], bannedPlayerIds[i+1:]...)
+			found = true
+			break
+		}
+	}
+	if !found {
+		return false
+	}
+	outJson, _ := json.Marshal(bannedPlayerIds)
+	ioutil.WriteFile("banned.json", outJson, 0644)
+	return true
 }
 
 func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
@@ -626,6 +615,7 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 			})
 		}
 	}
+	footer := SR("footer", i)
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -635,7 +625,7 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 						URL: "attachment://screen.png",
 					},
 					Footer: &discordgo.MessageEmbedFooter{
-						Text: "https://github.com/OFFTKP/pokemon-bot\n*Last button press (" + button.String() + ") by: " + i.Member.User.Username + "*",
+						Text: "https://github.com/OFFTKP/pokemon-bot\n" + footer,
 					},
 				},
 			},
@@ -647,11 +637,186 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	})
 }
 
-func RunBot(BotToken string) {
+func init() {
+	stringsJson := RSF("strings.json")
+	if stringsJson == "" {
+		log.Fatalln("strings.json not found")
+	}
+	json.Unmarshal([]byte(stringsJson), &S)
+	commands = []*discordgo.ApplicationCommand{
+		{
+			Name:        "screen",
+			Description: S["screen"],
+		},
+		{
+			Name:        "party-count",
+			Description: S["party-count"],
+		},
+		{
+			Name:        "ball-count",
+			Description: S["ball-count"],
+		},
+		{
+			Name:        "trainer",
+			Description: S["trainer"],
+		},
+		{
+			Name:        "summary",
+			Description: S["summary"],
+		},
+		{
+			Name:        "help",
+			Description: S["help"],
+		},
+		{
+			Name:        "save",
+			Description: S["save"],
+		},
+		{
+			Name:        "map",
+			Description: S["map"],
+		},
+		{
+			Name:        "leaderboard",
+			Description: S["leaderboard"],
+		},
+		{
+			Name:        "poke-ban",
+			Description: S["ban"],
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "user-id",
+					Description: S["banOptionUserId"],
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "poke-unban",
+			Description: S["unban"],
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "user-id",
+					Description: S["unbanOptionUserId"],
+					Required:    true,
+				},
+			},
+		},
+	}
+	buttonComponents = []discordgo.MessageComponent{
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
+					Label:    S["keyEmptyText"],
+					Style:    discordgo.SecondaryButton,
+					Disabled: true,
+					CustomID: "disabled_tl",
+				},
+				discordgo.Button{
+					Label:    S["keyUText"],
+					Style:    discordgo.PrimaryButton,
+					CustomID: "press_up",
+				},
+				discordgo.Button{
+					Label:    S["keyEmptyText"],
+					Style:    discordgo.SecondaryButton,
+					Disabled: true,
+					CustomID: "disabled_tr",
+				},
+				discordgo.Button{
+					Label:    S["keyAText"],
+					Style:    discordgo.SuccessButton,
+					CustomID: "press_a",
+				},
+				discordgo.Button{
+					Label:    S["keyEmptyText"],
+					Style:    discordgo.SecondaryButton,
+					Disabled: true,
+					CustomID: "disabled_rr",
+				},
+			},
+		},
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
+					Label:    S["keyLText"],
+					Style:    discordgo.PrimaryButton,
+					CustomID: "press_left",
+				},
+				discordgo.Button{
+					Label:    S["keyEmptyText"],
+					Style:    discordgo.SecondaryButton,
+					Disabled: true,
+					CustomID: "disabled_center",
+				},
+				discordgo.Button{
+					Label:    S["keyRText"],
+					Style:    discordgo.PrimaryButton,
+					CustomID: "press_right",
+				},
+				discordgo.Button{
+					Label:    S["keyEmptyText"],
+					Style:    discordgo.SecondaryButton,
+					Disabled: true,
+					CustomID: "disabled_ll",
+				},
+				discordgo.Button{
+					Label:    S["keyBText"],
+					Style:    discordgo.DangerButton,
+					CustomID: "press_b",
+				},
+			},
+		},
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
+					Label:    S["keyEmptyText"],
+					Style:    discordgo.SecondaryButton,
+					Disabled: true,
+					CustomID: "disabled_bl",
+				},
+				discordgo.Button{
+					Label:    S["keyDText"],
+					Style:    discordgo.PrimaryButton,
+					CustomID: "press_down",
+				},
+				discordgo.Button{
+					Label:    S["keyEmptyText"],
+					Style:    discordgo.SecondaryButton,
+					Disabled: true,
+					CustomID: "disabled_br",
+				},
+				discordgo.Button{
+					Label:    S["keyStartText"],
+					Style:    discordgo.PrimaryButton,
+					CustomID: "press_start",
+				},
+				discordgo.Button{
+					Label:    S["keySelectText"],
+					Style:    discordgo.PrimaryButton,
+					CustomID: "press_select",
+				},
+			},
+		},
+	}
 	bannedJson := RSF("banned.json")
 	if bannedJson != "" {
 		json.Unmarshal([]byte(bannedJson), &bannedPlayerIds)
 	}
+	adminsJson := RSF("admins.json")
+	if adminsJson != "" {
+		json.Unmarshal([]byte(adminsJson), &admins)
+	}
+	json.Unmarshal([]byte(RSF("leaderboard.json")), &leaderboard)
+	if leaderboard.Entries == nil {
+		fmt.Println("Leaderboard is nil, creating new one")
+		leaderboard.Entries = make([]LeaderboardEntry, 0)
+	}
+}
+
+func RunBot(BotToken string) {
 	var err error
 	session, err = discordgo.New("Bot " + BotToken)
 	if err != nil {
@@ -664,17 +829,11 @@ func RunBot(BotToken string) {
 				h(s, i)
 			}
 		case discordgo.InteractionMessageComponent:
-
 			if h, ok := componentHandlers[i.MessageComponentData().CustomID]; ok {
 				h(s, i)
 			}
 		}
 	})
-	json.Unmarshal([]byte(RSF("leaderboard.json")), &leaderboard)
-	if leaderboard.Entries == nil {
-		fmt.Println("Leaderboard is nil, creating new one")
-		leaderboard.Entries = make([]LeaderboardEntry, 0)
-	}
 	pong := get("ping")
 	if pong == nil {
 		log.Fatalf("GameboyWebserver not running! Please start GameboyWebserver first!")
@@ -696,5 +855,4 @@ func RunBot(BotToken string) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 	<-stop
-	saveLeaderboard()
 }
