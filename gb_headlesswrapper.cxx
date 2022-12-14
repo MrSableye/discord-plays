@@ -232,8 +232,9 @@ void Gameboy::ExecuteCommand(Command command) {
             ExecuteCommand(Command::A);
             ExecuteCommand(Command::A);
             ExecuteCommand(Command::A);
-            ExecuteCommand(Command::A);
             ExecuteCommand(Command::Frame);
+            ExecuteCommand(Command::A);
+            ExecuteCommand(Command::A);
             bus_.battery_save();
             std::stringstream ss;
             ss << std::hex;
