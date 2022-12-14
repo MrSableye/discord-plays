@@ -89,7 +89,7 @@ var buttonComponents []discordgo.MessageComponent = []discordgo.MessageComponent
 				CustomID: "disabled_tl",
 			},
 			discordgo.Button{
-				Label:    "Up",
+				Label:    "⬆️",
 				Style:    discordgo.PrimaryButton,
 				CustomID: "press_up",
 			},
@@ -100,7 +100,7 @@ var buttonComponents []discordgo.MessageComponent = []discordgo.MessageComponent
 				CustomID: "disabled_tr",
 			},
 			discordgo.Button{
-				Label:    "A",
+				Label:    "🅰️",
 				Style:    discordgo.SuccessButton,
 				CustomID: "press_a",
 			},
@@ -115,7 +115,7 @@ var buttonComponents []discordgo.MessageComponent = []discordgo.MessageComponent
 	discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.Button{
-				Label:    "Left",
+				Label:    "⬅️",
 				Style:    discordgo.PrimaryButton,
 				CustomID: "press_left",
 			},
@@ -126,7 +126,7 @@ var buttonComponents []discordgo.MessageComponent = []discordgo.MessageComponent
 				CustomID: "disabled_center",
 			},
 			discordgo.Button{
-				Label:    "Right",
+				Label:    "➡️",
 				Style:    discordgo.PrimaryButton,
 				CustomID: "press_right",
 			},
@@ -137,7 +137,7 @@ var buttonComponents []discordgo.MessageComponent = []discordgo.MessageComponent
 				CustomID: "disabled_ll",
 			},
 			discordgo.Button{
-				Label:    "B",
+				Label:    "🅱️",
 				Style:    discordgo.DangerButton,
 				CustomID: "press_b",
 			},
@@ -152,7 +152,7 @@ var buttonComponents []discordgo.MessageComponent = []discordgo.MessageComponent
 				CustomID: "disabled_bl",
 			},
 			discordgo.Button{
-				Label:    "Down",
+				Label:    "⬇️",
 				Style:    discordgo.PrimaryButton,
 				CustomID: "press_down",
 			},
@@ -163,12 +163,12 @@ var buttonComponents []discordgo.MessageComponent = []discordgo.MessageComponent
 				CustomID: "disabled_br",
 			},
 			discordgo.Button{
-				Label:    "Start",
+				Label:    "➕",
 				Style:    discordgo.PrimaryButton,
 				CustomID: "press_start",
 			},
 			discordgo.Button{
-				Label:    "Sel",
+				Label:    "➖",
 				Style:    discordgo.PrimaryButton,
 				CustomID: "press_select",
 			},
