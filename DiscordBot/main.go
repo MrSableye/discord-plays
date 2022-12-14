@@ -109,10 +109,15 @@ func run() {
 		fmt.Println("Bot is not configured. Please configure it first.")
 		return
 	}
-	fmt.Println("Starting webserver...")
-	gwStarted := startServer()
-	if !gwStarted {
-		return
+	pong := get("ping")
+	if pong == nil {
+		fmt.Println("Starting webserver...")
+		gwStarted := startServer()
+		if !gwStarted {
+			return
+		}
+	} else {
+		fmt.Println("Server already running. Skipping startup.")
 	}
 	fmt.Println("Starting Discord bot...")
 	go RunBot(settings.Token)
