@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -562,7 +563,7 @@ func sendScreenButtons(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	})
 }
 
-func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
+func checkBanned(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	for j := 0; j < len(bannedPlayerIds); j++ {
 		if bannedPlayerIds[j] == i.Member.User.ID {
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -579,6 +580,27 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 			return
 		}
 	}
+	if i.Member.JoinedAt.After(time.Now().Add(-time.Hour * 24 * 30)) {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Embeds: []*discordgo.MessageEmbed{
+					{
+						Title:       "Banned",
+						Description: "Your account is too new, adding to banned list. (lol)",
+					},
+				},
+			},
+		})
+		bannedPlayerIds = append(bannedPlayerIds, i.Member.User.ID)
+		outJson, _ := json.Marshal(bannedPlayerIds)
+		ioutil.WriteFile("banned.json", outJson, 0644)
+		return
+	}
+}
+
+func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
+	checkBanned(s, i)
 	send(button.String())
 	resp := get("screen")
 	bs, err := ioutil.ReadAll(resp.Body)
