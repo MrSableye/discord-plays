@@ -154,7 +154,7 @@ var (
 			summaryMutex.Lock()
 			defer summaryMutex.Unlock()
 			get("gif")
-			data, err := ioutil.ReadFile("../out.gif")
+			data, err := ioutil.ReadFile("out.gif")
 			if err != nil {
 				fmt.Println("Error while loading gif")
 				return
@@ -275,22 +275,7 @@ var (
 			})
 		},
 		"poke-ban": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			contains := false
-			for j := 0; j < len(admins); j++ {
-				if admins[j] == i.Member.User.ID {
-					contains = true
-					break
-				}
-			}
-			if !contains {
-				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Content: S["notAdmin"],
-					},
-				})
-				return
-			}
+			mustAdmin(s, i)
 			options := i.ApplicationCommandData().Options
 			b := addBanned(options[0].StringValue())
 			if b {
@@ -310,22 +295,7 @@ var (
 			}
 		},
 		"poke-unban": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			contains := false
-			for j := 0; j < len(admins); j++ {
-				if admins[j] == i.Member.User.ID {
-					contains = true
-					break
-				}
-			}
-			if !contains {
-				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Content: S["notAdmin"],
-					},
-				})
-				return
-			}
+			mustAdmin(s, i)
 			options := i.ApplicationCommandData().Options
 			b := removeBanned(options[0].StringValue())
 			if b {
@@ -346,6 +316,25 @@ var (
 		},
 	}
 )
+
+func mustAdmin(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
+	contains := false
+	for j := 0; j < len(admins); j++ {
+		if admins[j] == i.Member.User.ID {
+			contains = true
+			break
+		}
+	}
+	if !contains {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: S["notAdmin"],
+			},
+		})
+	}
+	return contains
+}
 
 var (
 	componentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
