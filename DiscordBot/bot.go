@@ -60,7 +60,15 @@ type Leaderboard struct {
 	Entries []LeaderboardEntry
 }
 
-var bannedPlayerIds []string
+type BannedPlayer struct {
+	Id        string
+	BannedBy  string
+	BanDate   time.Time
+	UnbanDate time.Time
+	Reason    string
+}
+
+var bannedPlayers []BannedPlayer
 var admins []string
 var S map[string]string
 var session *discordgo.Session
@@ -143,11 +151,7 @@ var (
 			})
 		},
 		"summary": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			for j := 0; j < len(bannedPlayerIds); j++ {
-				if bannedPlayerIds[j] == i.Member.User.ID {
-					return
-				}
-			}
+			checkBanned(s, i)
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 			})
@@ -179,6 +183,7 @@ var (
 			})
 		},
 		"party-count": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			checkBanned(s, i)
 			ret := get("party")
 			bs, err := ioutil.ReadAll(ret.Body)
 			check(err)
@@ -206,6 +211,7 @@ var (
 			check(err)
 		},
 		"ball-count": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			checkBanned(s, i)
 			ret := get("balls")
 			bs, err := ioutil.ReadAll(ret.Body)
 			check(err)
@@ -232,11 +238,7 @@ var (
 			displayHelp(s, i)
 		},
 		"save": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			for j := 0; j < len(bannedPlayerIds); j++ {
-				if bannedPlayerIds[j] == i.Member.User.ID {
-					return
-				}
-			}
+			checkBanned(s, i)
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 			})
@@ -274,30 +276,85 @@ var (
 				},
 			})
 		},
+		"poke-jail": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			mustAdmin(s, i)
+			var sb strings.Builder
+			for i := 0; i < len(bannedPlayers); i++ {
+				sb.WriteString("<@!" + bannedPlayers[i].Id + ">, Reason: ")
+				if bannedPlayers[i].Reason == "" {
+					sb.WriteString("No reason given")
+				} else {
+					sb.WriteString(bannedPlayers[i].Reason)
+				}
+				sb.WriteString("\nwas banned on " + bannedPlayers[i].BanDate.Format("2006-01-02"))
+				sb.WriteString(" by " + bannedPlayers[i].BannedBy)
+				sb.WriteString("\nand will be unbanned on " + bannedPlayers[i].UnbanDate.Format("2006-01-02") + "\n")
+				sb.WriteString("\n")
+				if i != len(bannedPlayers)-1 {
+					sb.WriteString("\n")
+				}
+			}
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Title:       "Jail",
+							Description: sb.String(),
+						},
+					},
+					AllowedMentions: &discordgo.MessageAllowedMentions{},
+				},
+			})
+		},
 		"poke-ban": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			mustAdmin(s, i)
-			options := i.ApplicationCommandData().Options
-			b := addBanned(options[0].StringValue())
+			optionMap := getOptions(i)
+			var bannedPlayer BannedPlayer
+			bannedPlayer.Id = optionMap["user-id"]
+			bannedPlayer.BanDate = time.Now()
+			bannedPlayer.BannedBy = "<@!" + i.Member.User.ID + ">"
+			if optionMap["days"] != "" {
+				days, err := strconv.Atoi(optionMap["days"])
+				if err != nil {
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: SR("banInvalidDays", i),
+						},
+					})
+					return
+				}
+				bannedPlayer.UnbanDate = time.Now().AddDate(0, 0, days)
+			} else {
+				bannedPlayer.UnbanDate = time.Now().AddDate(0, 0, 9999)
+			}
+			if optionMap["reason"] != "" {
+				bannedPlayer.Reason = optionMap["reason"]
+			}
+			b := addBanned(bannedPlayer)
 			if b {
 				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
-						Content: SR("userBanned", i),
+						Content:         SR("userBanned", i),
+						AllowedMentions: &discordgo.MessageAllowedMentions{},
 					},
 				})
 			} else {
 				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
-						Content: SR("userAlreadyBanned", i),
+						Content:         SR("userAlreadyBanned", i),
+						AllowedMentions: &discordgo.MessageAllowedMentions{},
 					},
 				})
 			}
 		},
 		"poke-unban": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			mustAdmin(s, i)
-			options := i.ApplicationCommandData().Options
-			b := removeBanned(options[0].StringValue())
+			optionMap := getOptions(i)
+			b := removeBanned(optionMap["user-id"])
 			if b {
 				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -490,19 +547,24 @@ func sendScreenButtons(s *discordgo.Session, i *discordgo.InteractionCreate) {
 }
 
 func checkBanned(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	for j := 0; j < len(bannedPlayerIds); j++ {
-		if bannedPlayerIds[j] == i.Member.User.ID {
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Title:       "Banned",
-							Description: S["bannedMessage"],
+	for j := 0; j < len(bannedPlayers); j++ {
+		if bannedPlayers[j].Id == i.Member.User.ID {
+			if time.Now().Before(bannedPlayers[j].UnbanDate) {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Embeds: []*discordgo.MessageEmbed{
+							{
+								Title:       "Banned",
+								Description: SR("bannedMessage", i),
+								Footer:      &discordgo.MessageEmbedFooter{Text: "You will be unbanned after " + bannedPlayers[j].UnbanDate.Format("2006-01-02")},
+							},
 						},
 					},
-				},
-			})
+				})
+			} else {
+				removeBanned(i.Member.User.ID)
+			}
 			return
 		}
 	}
@@ -511,18 +573,27 @@ func checkBanned(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		days = 0
 	}
 	if i.Member.JoinedAt.After(time.Now().AddDate(0, 0, -days)) {
+		unbanDate := time.Now().AddDate(0, 0, days)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Embeds: []*discordgo.MessageEmbed{
 					{
 						Title:       "Banned",
-						Description: S["bannedMessageTooNew"],
+						Description: SR("bannedMessageTooNew", i),
+						Footer:      &discordgo.MessageEmbedFooter{Text: "You will be unbanned after " + unbanDate.Format("2006-01-02")},
 					},
 				},
 			},
 		})
-		addBanned(i.Member.User.ID)
+		var bannedPlayer BannedPlayer = BannedPlayer{
+			Id:        i.Member.User.ID,
+			UnbanDate: unbanDate,
+			Reason:    "Account joined server too recently",
+			BannedBy:  "Bot",
+			BanDate:   time.Now(),
+		}
+		addBanned(bannedPlayer)
 		return
 	}
 }
@@ -538,15 +609,17 @@ func SR(str string, i *discordgo.InteractionCreate) string {
 	ret = strings.ReplaceAll(ret, "%ID%", i.Member.User.ID)
 	ret = strings.ReplaceAll(ret, "%DATE%", time.Now().Format("2006-01-02"))
 	if options != nil {
-		ret = strings.ReplaceAll(ret, "%OPTION%", options[0].StringValue())
+		for i := 0; i < len(options); i++ {
+			ret = strings.ReplaceAll(ret, "%OPTION"+strconv.Itoa(i)+"%", options[i].StringValue())
+		}
 	}
 	return ret
 }
 
-func addBanned(id string) bool {
+func addBanned(bannedPlayer BannedPlayer) bool {
 	found := false
-	for i := 0; i < len(bannedPlayerIds); i++ {
-		if bannedPlayerIds[i] == id {
+	for i := 0; i < len(bannedPlayers); i++ {
+		if bannedPlayers[i].Id == bannedPlayer.Id {
 			found = true
 			break
 		}
@@ -554,17 +627,29 @@ func addBanned(id string) bool {
 	if found {
 		return false
 	}
-	bannedPlayerIds = append(bannedPlayerIds, id)
-	outJson, _ := json.Marshal(bannedPlayerIds)
+	bannedPlayers = append(bannedPlayers, bannedPlayer)
+	outJson, _ := json.Marshal(bannedPlayers)
 	ioutil.WriteFile("banned.json", outJson, 0644)
 	return true
 }
 
+func getOptions(i *discordgo.InteractionCreate) map[string]string {
+	if !(i.Type == discordgo.InteractionApplicationCommand || i.Type == discordgo.InteractionApplicationCommandAutocomplete) {
+		return nil
+	}
+	options := i.ApplicationCommandData().Options
+	optionMap := make(map[string]string, len(options))
+	for _, opt := range options {
+		optionMap[opt.Name] = opt.StringValue()
+	}
+	return optionMap
+}
+
 func removeBanned(id string) bool {
 	found := false
-	for i := 0; i < len(bannedPlayerIds); i++ {
-		if bannedPlayerIds[i] == id {
-			bannedPlayerIds = append(bannedPlayerIds[:i], bannedPlayerIds[i+1:]...)
+	for i := 0; i < len(bannedPlayers); i++ {
+		if bannedPlayers[i].Id == id {
+			bannedPlayers = append(bannedPlayers[:i], bannedPlayers[i+1:]...)
 			found = true
 			break
 		}
@@ -572,7 +657,7 @@ func removeBanned(id string) bool {
 	if !found {
 		return false
 	}
-	outJson, _ := json.Marshal(bannedPlayerIds)
+	outJson, _ := json.Marshal(bannedPlayers)
 	ioutil.WriteFile("banned.json", outJson, 0644)
 	return true
 }
@@ -670,8 +755,12 @@ func init() {
 			Description: S["leaderboard"],
 		},
 		{
+			Name:        "poke-jail",
+			Description: S["poke-jail"],
+		},
+		{
 			Name:        "poke-ban",
-			Description: S["ban"],
+			Description: S["poke-ban"],
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
@@ -679,11 +768,23 @@ func init() {
 					Description: S["banOptionUserId"],
 					Required:    true,
 				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "days",
+					Description: S["banOptionDays"],
+					Required:    false,
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "reason",
+					Description: S["banOptionReason"],
+					Required:    false,
+				},
 			},
 		},
 		{
 			Name:        "poke-unban",
-			Description: S["unban"],
+			Description: S["poke-unban"],
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
@@ -792,7 +893,7 @@ func init() {
 	}
 	bannedJson := RSF("banned.json")
 	if bannedJson != "" {
-		json.Unmarshal([]byte(bannedJson), &bannedPlayerIds)
+		json.Unmarshal([]byte(bannedJson), &bannedPlayers)
 	}
 	adminsJson := RSF("admins.json")
 	if adminsJson != "" {
