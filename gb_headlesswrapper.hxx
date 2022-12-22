@@ -56,7 +56,6 @@ public:
     Gameboy(std::string path);
     Gameboy(const Gameboy&) = default;
     void ExecuteCommand(Command command);
-    void SetValue(std::string val) { value_ = val; }
     void SetMemory(uint16_t addr, uint8_t val) { bus_.Write(addr, val); }
     std::string GetRes() { return res_; }
 private:
@@ -89,7 +88,6 @@ private:
     std::string poke_item_to_name(uint8_t type);
 
     int frame_clk_ = 0;
-    std::string value_;
     std::string res_;
 };
 #endif

@@ -128,81 +128,49 @@ void Gameboy::ExecuteCommand(Command command) {
             break;
         }
         case Command::Start: {
-            int count = std::atoi(value_.c_str());
-            if ((count <= 0) || (count > 10))
-                count = 1;
-            for (int i = 0; i < count; i++)
-			    action(3)
+            action(3);
             ExecuteCommand(Command::Second);
             ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::Select: {
-            int count = std::atoi(value_.c_str());
-            if ((count <= 0) || (count > 10))
-                count = 1;
-            for (int i = 0; i < count; i++)
-                action(2);
+            action(2);
             ExecuteCommand(Command::Second);
             ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::B: {
-            int count = std::atoi(value_.c_str());
-            if ((count <= 0) || (count > 10))
-                count = 1;
-            for (int i = 0; i < count; i++)
-                action(1);
+            action(1);
             ExecuteCommand(Command::Second);
             ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::A: {
-            int count = std::atoi(value_.c_str());
-            if ((count <= 0) || (count > 10))
-                count = 1;
-            for (int i = 0; i < count; i++)
-                action(0);
+            action(0);
             ExecuteCommand(Command::Second);
             ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::Down: {
-            int count = std::atoi(value_.c_str());
-            if ((count <= 0) || (count > 10))
-                count = 1;
-            for (int i = 0; i < count; i++)
-                direction(3);
+            direction(3);
             ExecuteCommand(Command::Second);
             ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::Up: {
-            int count = std::atoi(value_.c_str());
-            if ((count <= 0) || (count > 10))
-                count = 1;
-            for (int i = 0; i < count; i++)
-                direction(2);
+            direction(2);
             ExecuteCommand(Command::Second);
             ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::Left: {
-            int count = std::atoi(value_.c_str());
-            if ((count <= 0) || (count > 10))
-                count = 1;
-            for (int i = 0; i < count; i++)
-                direction(1);
+            direction(1);
             ExecuteCommand(Command::Second);
             ExecuteCommand(Command::Screenshot);
             break;
         }
         case Command::Right: {
-            int count = std::atoi(value_.c_str());
-            if ((count <= 0) || (count > 10))
-                count = 1;
-            for (int i = 0; i < count; i++)
-                direction(0);
+            direction(0);
             ExecuteCommand(Command::Second);
             ExecuteCommand(Command::Screenshot);
             break;
@@ -217,7 +185,6 @@ void Gameboy::ExecuteCommand(Command command) {
             break;
         }
         case Command::StartSave: {
-            value_ = "";
             ExecuteCommand(Command::Start);
             // Change all options to "Save"
             bus_.Write(0xCF2A, 0x04);
@@ -233,6 +200,7 @@ void Gameboy::ExecuteCommand(Command command) {
             ExecuteCommand(Command::A);
             ExecuteCommand(Command::A);
             ExecuteCommand(Command::Frame);
+            ExecuteCommand(Command::A);
             ExecuteCommand(Command::A);
             ExecuteCommand(Command::A);
             bus_.battery_save();
@@ -267,7 +235,6 @@ void Gameboy::ExecuteCommand(Command command) {
             break;
         }
         case Command::GetMap: {
-            value_ = "";
             ExecuteCommand(Command::Start);
             // Change all options to "Pokegear"
             bus_.Write(0xCF2A, 0x07);
@@ -285,36 +252,6 @@ void Gameboy::ExecuteCommand(Command command) {
             ExecuteCommand(Command::B);
             ExecuteCommand(Command::B);
             break;
-        }
-        case Command::ReadSingle: {
-            uint8_t data = 0xff;
-            {
-                std::stringstream ss;
-                ss << std::hex << value_;
-                uint16_t addr = 0;
-                ss >> addr;
-                data = bus_.Read(addr);
-            }
-            std::stringstream ss;
-            ss << std::hex << (int)data;
-            res_ = ss.str();
-            std::cout << "reading   data: " << res_ << std::endl;
-            break;
-        }
-        case Command::ReadString: {
-            uint16_t addr = 0;
-            {
-                std::stringstream ss;
-                ss << std::hex << value_;
-                ss >> addr;
-            }
-            std::stringstream ss;
-            for (int i = 0; i < 0xB; i++) {
-                ss << bus_.Read(addr + i);
-            }
-            res_ = ss.str();
-            std::cout << "reading from: " << addr << std::endl;
-            break; 
         }
         default: {
             // ignore

@@ -329,7 +329,7 @@ func mustAdmin(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: S["notAdmin"],
+				Content: SR("notAdmin", i),
 			},
 		})
 	}
@@ -534,7 +534,7 @@ func SR(str string, i *discordgo.InteractionCreate) string {
 		options = i.ApplicationCommandData().Options
 	}
 	ret := S[str]
-	ret = strings.ReplaceAll(ret, "%USER%", i.Member.User.Username)
+	ret = strings.ReplaceAll(ret, "%NAME%", i.Member.User.Username)
 	ret = strings.ReplaceAll(ret, "%ID%", i.Member.User.ID)
 	ret = strings.ReplaceAll(ret, "%DATE%", time.Now().Format("2006-01-02"))
 	if options != nil {
