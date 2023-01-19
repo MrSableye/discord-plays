@@ -217,6 +217,18 @@ var (
 			check(err)
 			var balls Pokeballs
 			json.Unmarshal(bs, &balls)
+			sort.Slice(balls.Balls, func(i2, j int) bool {
+				return balls.Balls[i2].Name < balls.Balls[j].Name
+			})
+			for i := 0; i < len(balls.Balls); i++ {
+				if i+1 < len(balls.Balls) {
+					if balls.Balls[i].Name == balls.Balls[i+1].Name {
+						balls.Balls[i].Count += balls.Balls[i+1].Count
+						balls.Balls = append(balls.Balls[:i+1], balls.Balls[i+2:]...)
+						i--
+					}
+				}
+			}
 			var sb strings.Builder
 			for _, ball := range balls.Balls {
 				sb.WriteString(ball.Name + ": " + strconv.Itoa(ball.Count) + "\n")
@@ -286,9 +298,9 @@ var (
 				} else {
 					sb.WriteString(bannedPlayers[i].Reason)
 				}
-				sb.WriteString("\nwas banned on " + bannedPlayers[i].BanDate.Format("2006-01-02"))
+				sb.WriteString("\nwas timed out on " + bannedPlayers[i].BanDate.Format("2006-01-02"))
 				sb.WriteString(" by " + bannedPlayers[i].BannedBy)
-				sb.WriteString("\nand will be unbanned on " + bannedPlayers[i].UnbanDate.Format("2006-01-02") + "\n")
+				sb.WriteString("\nand will be free to use the bot on " + bannedPlayers[i].UnbanDate.Format("2006-01-02") + "\n")
 				sb.WriteString("\n")
 				if i != len(bannedPlayers)-1 {
 					sb.WriteString("\n")
@@ -557,7 +569,7 @@ func checkBanned(s *discordgo.Session, i *discordgo.InteractionCreate) {
 							{
 								Title:       "Banned",
 								Description: SR("bannedMessage", i),
-								Footer:      &discordgo.MessageEmbedFooter{Text: "You will be unbanned after " + bannedPlayers[j].UnbanDate.Format("2006-01-02")},
+								Footer:      &discordgo.MessageEmbedFooter{Text: "You will be free to use this bot after " + bannedPlayers[j].UnbanDate.Format("2006-01-02")},
 							},
 						},
 					},
@@ -581,7 +593,7 @@ func checkBanned(s *discordgo.Session, i *discordgo.InteractionCreate) {
 					{
 						Title:       "Banned",
 						Description: SR("bannedMessageTooNew", i),
-						Footer:      &discordgo.MessageEmbedFooter{Text: "You will be unbanned after " + unbanDate.Format("2006-01-02")},
+						Footer:      &discordgo.MessageEmbedFooter{Text: "You will be free to use this bot after " + unbanDate.Format("2006-01-02")},
 					},
 				},
 			},

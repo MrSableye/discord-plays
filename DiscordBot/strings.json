@@ -19,7 +19,7 @@
     "leaderboard":"Show the leaderboard",
     "leaderboardEntries": "15",
     "bannedMessage": "You have been banned from using this bot: <@!%ID%>",
-    "bannedMessageTooNew": "Your account is too new, adding to banned list: <@!%ID%>",
+    "bannedMessageTooNew": "Your account is too new. You are now timed out from using this bot. <@%ID%>",
     "guildDaysConsideredTooYoung": "7",
     "poke-ban": "Ban a user from using the bot (only bot admins can use this command)",
     "poke-unban": "Unban a user (only bot admins can use this command)",
