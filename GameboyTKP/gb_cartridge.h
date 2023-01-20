@@ -20,6 +20,7 @@ namespace TKPEmu::Gameboy::Devices {
 		MMM01 = 0xB,
 		MMM01_RAM = 0xC,
 		MMM01_RAM_BATTERY = 0xD,
+		MBC3_TIMER_BATTERY = 0xF,
 		MBC3_TIMER_RAM_BATTERY = 0x10,
 		MBC3 = 0x11,
 		MBC3_RAM = 0x12,

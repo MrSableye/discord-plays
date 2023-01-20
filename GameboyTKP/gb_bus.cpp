@@ -10,9 +10,16 @@ namespace TKPEmu::Gameboy::Devices {
     using RamBank = std::array<uint8_t, 0x2000>;
 	Bus::Bus(ChannelArrayPtr channel_array_ptr)
 			: channel_array_ptr_(channel_array_ptr)
+			, start_time_(std::chrono::system_clock::now())
+			, rtc_latch_(std::chrono::system_clock::now())
+			, rtc_seconds_(0)
+			, rtc_minutes_(0)
+			, rtc_hours_(0)
+			, rtc_days1_(0)
+			, rtc_days2_(0)
 	{
 		(*channel_array_ptr_)[2].LengthInit = 256;
-		
+		start_time_ -= std::chrono::days(3);
 	}
 	Bus::~Bus() {
 		// battery_save();
@@ -69,7 +76,8 @@ namespace TKPEmu::Gameboy::Devices {
 			}
 			case CartridgeType::MBC3:
 			case CartridgeType::MBC3_RAM:
-			case CartridgeType::MBC3_RAM_BATTERY: 
+			case CartridgeType::MBC3_RAM_BATTERY:
+			case CartridgeType::MBC3_TIMER_BATTERY:
 			case CartridgeType::MBC3_TIMER_RAM_BATTERY: {
 				if (address <= 0x1FFF) {
 					if ((data & 0b1111) == 0b1010) {
@@ -87,13 +95,20 @@ namespace TKPEmu::Gameboy::Devices {
 					refill_fast_map_rom();
 				}
 				else if (address <= 0x5FFF) {
-					if (data <= 0b11) {
-						selected_ram_bank_ = data; 
-					} else {
-						// TODO: mbc3 rtc
-					}
+					selected_ram_bank_ = data;
 				}
 				else {
+					static uint8_t last_written = -1;
+					if (last_written == 0 && data == 1) {
+						rtc_latch_ = std::chrono::system_clock::now();
+						rtc_seconds_ = std::chrono::duration_cast<std::chrono::seconds>(rtc_latch_ - start_time_).count() % 60;
+						rtc_minutes_ = std::chrono::duration_cast<std::chrono::minutes>(rtc_latch_ - start_time_).count() % 60;
+						rtc_hours_ = std::chrono::duration_cast<std::chrono::hours>(rtc_latch_ - start_time_).count() % 24;
+						uint16_t days = std::chrono::duration_cast<std::chrono::days>(rtc_latch_ - start_time_).count();
+						rtc_days1_ = days % 0xFF;
+						rtc_days2_ = ((days >> 8) & 1) | rtc_days2_ & 0b1111'1110;
+					}
+					last_written = data;
 					// MODE register
 					banking_mode_ = data & 0b1;
 					refill_fast_map_rom();
@@ -201,6 +216,7 @@ namespace TKPEmu::Gameboy::Devices {
 			case CartridgeType::MBC3:
 			case CartridgeType::MBC3_RAM:
 			case CartridgeType::MBC3_RAM_BATTERY:
+			case CartridgeType::MBC3_TIMER_BATTERY:
 			case CartridgeType::MBC3_TIMER_RAM_BATTERY: {
 				auto sel = selected_rom_bank_ % cartridge_.GetRomSize();
 				for (int i = 0x40; i < 0x80; i++) {
@@ -324,6 +340,7 @@ namespace TKPEmu::Gameboy::Devices {
 					case CartridgeType::MBC3:
 					case CartridgeType::MBC3_RAM:
 					case CartridgeType::MBC3_RAM_BATTERY:
+					case CartridgeType::MBC3_TIMER_BATTERY:
 					case CartridgeType::MBC3_TIMER_RAM_BATTERY: {
 						if (address <= 0x3FFF) {
 							return (rom_banks_[0])[address % 0x4000];
@@ -381,6 +398,46 @@ namespace TKPEmu::Gameboy::Devices {
 							return unused_mem_area_;
 						}
 						break;
+					}
+					case CartridgeType::MBC3:
+					case CartridgeType::MBC3_RAM:
+					case CartridgeType::MBC3_RAM_BATTERY:
+					case CartridgeType::MBC3_TIMER_BATTERY:
+					case CartridgeType::MBC3_TIMER_RAM_BATTERY: {
+						if (ram_enabled_) {
+							if (selected_ram_bank_ <= 3) {
+								if (cartridge_.GetRamSize() == 0)
+									return eram_default_[address % 0x2000];
+								auto sel = (banking_mode_ ? selected_ram_bank_ : 0) % cartridge_.GetRamSize();
+								return (ram_banks_[sel])[address % 0x2000];
+							} else {
+								// RTC registers
+								switch (selected_ram_bank_) {
+									case 0x8: {
+										return rtc_seconds_;
+									}
+									case 0x9: {
+										return rtc_minutes_;
+									}
+									case 0xA: {
+										return rtc_hours_;
+									}
+									case 0xB: {
+										return rtc_days1_;
+									}
+									case 0xC: {
+										return rtc_days2_;
+									}
+									default: {
+										unused_mem_area_ = 0xFF;
+										return unused_mem_area_;
+									}
+								}
+							}
+						} else {
+							unused_mem_area_ = 0xFF;
+							return unused_mem_area_;
+						}
 					}
 					default: {
 						if (ram_enabled_) {

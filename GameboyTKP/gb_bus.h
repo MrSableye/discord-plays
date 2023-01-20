@@ -10,6 +10,7 @@
 #include <memory>
 #include <deque>
 #include <optional>
+#include <chrono>
 #include <unordered_map>
 #include <GameboyTKP/gb_cartridge.h>
 #include <GameboyTKP/gb_addresses.h>
@@ -19,6 +20,7 @@ class Gameboy;
 namespace TKPEmu::Gameboy {
     class Gameboy_TKPWrapper;
 }
+using timestamp = decltype(std::chrono::system_clock::now());
 namespace TKPEmu::Gameboy::Devices {
     struct Change {
 		int type = 0;
@@ -110,6 +112,8 @@ namespace TKPEmu::Gameboy::Devices {
         bool dmg_bios_loaded_ = false;
         bool cgb_bios_loaded_ = false;
         ChannelArrayPtr channel_array_ptr_;
+        timestamp start_time_, rtc_latch_;
+        uint8_t rtc_seconds_, rtc_minutes_, rtc_hours_, rtc_days1_, rtc_days2_;
         uint8_t& redirect_address(uint16_t address);
         uint8_t& fast_redirect_address(uint16_t address);
         void fill_fast_map();
