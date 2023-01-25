@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 func check(err error) {
@@ -40,4 +41,21 @@ func GetAbsolutePath() string {
 		fmt.Println("Invalid path. Please enter an absolute path, not a relative path.")
 	}
 	return ret
+}
+
+func GetNumber(def int) int {
+	var num string
+	for {
+		fmt.Scan(&num)
+		if num == "" {
+			fmt.Println("Using default value: " + strconv.Itoa(def) + ".")
+			return def
+		}
+		ret, err := strconv.Atoi(num)
+		if err != nil {
+			fmt.Println("Invalid input. Please enter a number.")
+		} else {
+			return ret
+		}
+	}
 }
