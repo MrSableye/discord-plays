@@ -71,6 +71,7 @@ var session *discordgo.Session
 var leaderboard Leaderboard
 var keyPressCount int = 0
 var mutex sync.Mutex
+var toggleKey int = 0
 
 type ButtonType int
 
@@ -86,8 +87,6 @@ const (
 	ButtonL
 	ButtonR
 )
-
-var buttonComponents []discordgo.MessageComponent
 
 var (
 	commands []*discordgo.ApplicationCommand
@@ -170,6 +169,9 @@ var (
 		},
 		"press_r": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			press(s, i, ButtonR)
+		},
+		"hold": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			hold(s, i)
 		},
 	}
 )
@@ -269,7 +271,7 @@ func printLeaderboard() string {
 	if err != nil {
 		max = 10
 	}
-	if len(leaderboard.Entries) < 10 {
+	if len(leaderboard.Entries) < max {
 		max = len(leaderboard.Entries)
 	}
 	for i := 0; i < max; i++ {
@@ -403,6 +405,21 @@ func removeBanned(id string) bool {
 	return true
 }
 
+func hold(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if checkBanned(s, i) {
+		return
+	}
+	if toggleKey == 0 {
+		toggleKey = 1
+	} else {
+		toggleKey = 0
+	}
+	mutex.Lock()
+	checkOk(get("input?B=" + strconv.Itoa(toggleKey)))
+	respondScreen(s, i)
+	mutex.Unlock()
+}
+
 func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
 	if checkBanned(s, i) {
 		return
@@ -412,7 +429,7 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	checkOk(get("step?frames=" + strconv.Itoa(settings.FramesSteppedPressed)))
 	checkOk(get("input?" + button.String() + "=0"))
 	checkOk(get("step?frames=" + strconv.Itoa(settings.FramesSteppedReleased)))
-	reader := getScreen()
+	respondScreen(s, i)
 	mutex.Unlock()
 	// Add score to leaderboard
 	if i.Member.User != nil {
@@ -431,12 +448,16 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 			})
 		}
 	}
-	// Save every 100 keystrokes
+	// Save every 50 keystrokes
 	keyPressCount++
-	if keyPressCount >= 100 {
+	if keyPressCount >= 50 {
 		keyPressCount = 0
 		saveLeaderboard()
 	}
+}
+
+func respondScreen(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	reader := getScreen()
 	embeds := []*discordgo.MessageEmbed{
 		{
 			Image: &discordgo.MessageEmbedImage{
@@ -447,6 +468,7 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 			},
 		},
 	}
+	buttons := getButtons()
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -454,9 +476,111 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 			Files: []*discordgo.File{
 				{Name: "screen.png", Reader: reader},
 			},
-			Components: buttonComponents,
+			Components: buttons,
 		},
 	})
+}
+
+func getButtons() []discordgo.MessageComponent {
+	var toggleStr string
+	if toggleKey == 1 {
+		toggleStr = "keyToggleOnText"
+	} else {
+		toggleStr = "keyToggleOffText"
+	}
+	return []discordgo.MessageComponent{
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
+					Label:    S["keyLText"],
+					Style:    discordgo.SecondaryButton,
+					CustomID: "press_l",
+				},
+				discordgo.Button{
+					Label:    S["keyUpText"],
+					Style:    discordgo.PrimaryButton,
+					CustomID: "press_up",
+				},
+				discordgo.Button{
+					Label:    S["keyRText"],
+					Style:    discordgo.SecondaryButton,
+					CustomID: "press_r",
+				},
+				discordgo.Button{
+					Label:    S["keyAText"],
+					Style:    discordgo.SuccessButton,
+					CustomID: "press_a",
+				},
+				discordgo.Button{
+					Label:    S[toggleStr],
+					Style:    discordgo.SecondaryButton,
+					CustomID: "hold",
+				},
+			},
+		},
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
+					Label:    S["keyLeftText"],
+					Style:    discordgo.PrimaryButton,
+					CustomID: "press_left",
+				},
+				discordgo.Button{
+					Label:    S["keyEmptyText"],
+					Style:    discordgo.SecondaryButton,
+					Disabled: true,
+					CustomID: "disabled_center",
+				},
+				discordgo.Button{
+					Label:    S["keyRightText"],
+					Style:    discordgo.PrimaryButton,
+					CustomID: "press_right",
+				},
+				discordgo.Button{
+					Label:    S["keyEmptyText"],
+					Style:    discordgo.SecondaryButton,
+					Disabled: true,
+					CustomID: "disabled_ll",
+				},
+				discordgo.Button{
+					Label:    S["keyBText"],
+					Style:    discordgo.DangerButton,
+					CustomID: "press_b",
+				},
+			},
+		},
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
+					Label:    S["keyEmptyText"],
+					Style:    discordgo.SecondaryButton,
+					Disabled: true,
+					CustomID: "disabled_bl",
+				},
+				discordgo.Button{
+					Label:    S["keyDownText"],
+					Style:    discordgo.PrimaryButton,
+					CustomID: "press_down",
+				},
+				discordgo.Button{
+					Label:    S["keyEmptyText"],
+					Style:    discordgo.SecondaryButton,
+					Disabled: true,
+					CustomID: "disabled_br",
+				},
+				discordgo.Button{
+					Label:    S["keyStartText"],
+					Style:    discordgo.PrimaryButton,
+					CustomID: "press_start",
+				},
+				discordgo.Button{
+					Label:    S["keySelectText"],
+					Style:    discordgo.PrimaryButton,
+					CustomID: "press_select",
+				},
+			},
+		},
+	}
 }
 
 func init() {
@@ -525,100 +649,6 @@ func init() {
 		{
 			Name:        "status",
 			Description: S["status"],
-		},
-	}
-	buttonComponents = []discordgo.MessageComponent{
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.Button{
-					Label:    S["keyLText"],
-					Style:    discordgo.SecondaryButton,
-					CustomID: "press_l",
-				},
-				discordgo.Button{
-					Label:    S["keyUpText"],
-					Style:    discordgo.PrimaryButton,
-					CustomID: "press_up",
-				},
-				discordgo.Button{
-					Label:    S["keyRText"],
-					Style:    discordgo.SecondaryButton,
-					CustomID: "press_r",
-				},
-				discordgo.Button{
-					Label:    S["keyAText"],
-					Style:    discordgo.SuccessButton,
-					CustomID: "press_a",
-				},
-				discordgo.Button{
-					Label:    S["keyEmptyText"],
-					Style:    discordgo.SecondaryButton,
-					Disabled: true,
-					CustomID: "disabled_rr",
-				},
-			},
-		},
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.Button{
-					Label:    S["keyLeftText"],
-					Style:    discordgo.PrimaryButton,
-					CustomID: "press_left",
-				},
-				discordgo.Button{
-					Label:    S["keyEmptyText"],
-					Style:    discordgo.SecondaryButton,
-					Disabled: true,
-					CustomID: "disabled_center",
-				},
-				discordgo.Button{
-					Label:    S["keyRightText"],
-					Style:    discordgo.PrimaryButton,
-					CustomID: "press_right",
-				},
-				discordgo.Button{
-					Label:    S["keyEmptyText"],
-					Style:    discordgo.SecondaryButton,
-					Disabled: true,
-					CustomID: "disabled_ll",
-				},
-				discordgo.Button{
-					Label:    S["keyBText"],
-					Style:    discordgo.DangerButton,
-					CustomID: "press_b",
-				},
-			},
-		},
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.Button{
-					Label:    S["keyEmptyText"],
-					Style:    discordgo.SecondaryButton,
-					Disabled: true,
-					CustomID: "disabled_bl",
-				},
-				discordgo.Button{
-					Label:    S["keyDownText"],
-					Style:    discordgo.PrimaryButton,
-					CustomID: "press_down",
-				},
-				discordgo.Button{
-					Label:    S["keyEmptyText"],
-					Style:    discordgo.SecondaryButton,
-					Disabled: true,
-					CustomID: "disabled_br",
-				},
-				discordgo.Button{
-					Label:    S["keyStartText"],
-					Style:    discordgo.PrimaryButton,
-					CustomID: "press_start",
-				},
-				discordgo.Button{
-					Label:    S["keySelectText"],
-					Style:    discordgo.PrimaryButton,
-					CustomID: "press_select",
-				},
-			},
 		},
 	}
 	bannedJson := RSF("banned.json")

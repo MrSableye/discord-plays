@@ -9,6 +9,8 @@
     "keyBText": "B",
     "keyStartText": "➕",
     "keySelectText": "➖",
+    "keyToggleOffText": "🚶",
+    "keyToggleOnText": "🏃",
     "keyEmptyText": " ",
     "screen":"Show current screen",
     "summary":"Show a gif of the last few frames",

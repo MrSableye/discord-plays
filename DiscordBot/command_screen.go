@@ -20,11 +20,12 @@ func commandScreen(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			},
 		},
 	}
+	buttons := getButtons()
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Embeds: &embeds,
 		Files: []*discordgo.File{
 			{Name: "screen.png", Reader: reader},
 		},
-		Components: &buttonComponents,
+		Components: &buttons,
 	})
 }
