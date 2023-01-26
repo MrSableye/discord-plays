@@ -11,7 +11,7 @@ func commandHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 					Title:       "Help",
 					URL:         "https://github.com/OFFTKP/pokemon-bot",
 					Type:        discordgo.EmbedTypeRich,
-					Description: "Check out the github for help\n\nFeel free to contribute or raise an issue",
+					Description: "Check out the github for help\n\nFeel free to contribute or raise an issue\n\nCheck out SkyEmu: https://github.com/skylersaleh/SkyEmu/",
 				},
 			},
 		},

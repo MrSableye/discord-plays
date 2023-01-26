@@ -16,12 +16,15 @@ import (
 var configFile string
 
 type BotSettings struct {
-	Token          string
-	GamePath       string
-	ServerPath     string
-	TimeoutSeconds int
-	Port           string
-	StartCommand   string
+	Token                 string
+	GamePath              string
+	ServerPath            string
+	TimeoutSeconds        int
+	Port                  string
+	StartCommand          string
+	FramesSteppedPressed  int
+	FramesSteppedReleased int
+	Debug                 int
 }
 
 var webserver *exec.Cmd
@@ -97,7 +100,7 @@ func configure() {
 		}
 		fmt.Println("Invalid input. Please enter a number between 1 and 3.")
 	}
-	settings = BotSettings{token, gamePath, serverPath, timeout, strconv.Itoa(port), startCommand}
+	settings = BotSettings{token, gamePath, serverPath, timeout, strconv.Itoa(port), startCommand, 60, 60, 0}
 	settingsJson, err := json.Marshal(settings)
 	check(err)
 	fmt.Println("Writing config file...")

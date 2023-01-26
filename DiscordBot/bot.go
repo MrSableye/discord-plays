@@ -201,9 +201,13 @@ func (b *ButtonType) String() string {
 }
 
 func get(str string) *http.Response {
-	req, err := http.NewRequest("GET", "http://localhost:"+settings.Port+"/"+str, nil)
+	url := "http://localhost:" + settings.Port + "/" + str
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Println(err)
+	}
+	if settings.Debug == 1 {
+		fmt.Println(url)
 	}
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -211,6 +215,24 @@ func get(str string) *http.Response {
 		fmt.Println(err)
 	}
 	return resp
+}
+
+func checkOk(resp *http.Response) bool {
+	if resp.StatusCode != 200 {
+		fmt.Println(resp.StatusCode)
+		return false
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	bodystr := string(body)
+	if bodystr[0] != 'o' && bodystr[1] != 'k' {
+		fmt.Println("Not Ok:" + bodystr)
+		return false
+	}
+	return true
 }
 
 func getScreen() *bytes.Reader {
@@ -385,14 +407,11 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	if checkBanned(s, i) {
 		return
 	}
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-	})
 	mutex.Lock()
-	get("input?" + button.String() + "=1")
-	get("step?frames=30")
-	get("input?" + button.String() + "=0")
-	get("step?frames=30")
+	checkOk(get("input?" + button.String() + "=1"))
+	checkOk(get("step?frames=" + strconv.Itoa(settings.FramesSteppedPressed)))
+	checkOk(get("input?" + button.String() + "=0"))
+	checkOk(get("step?frames=" + strconv.Itoa(settings.FramesSteppedReleased)))
 	reader := getScreen()
 	mutex.Unlock()
 	// Add score to leaderboard
@@ -424,16 +443,19 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 				URL: "attachment://screen.png",
 			},
 			Footer: &discordgo.MessageEmbedFooter{
-				Text: "https://github.com/OFFTKP/pokemon-bot",
+				Text: SR("footer", i) + "\nhttps://github.com/OFFTKP/pokemon-bot",
 			},
 		},
 	}
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-		Embeds: &embeds,
-		Files: []*discordgo.File{
-			{Name: "screen.png", Reader: reader},
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: embeds,
+			Files: []*discordgo.File{
+				{Name: "screen.png", Reader: reader},
+			},
+			Components: buttonComponents,
 		},
-		Components: &buttonComponents,
 	})
 }
 

@@ -20,7 +20,7 @@ func commandStatus(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	str := "```c\n" + string(body) + "\n	```"
+	str := "```c\n" + string(body) + "```"
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &str,
 	})
