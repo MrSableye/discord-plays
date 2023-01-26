@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -69,6 +70,7 @@ var S map[string]string
 var session *discordgo.Session
 var leaderboard Leaderboard
 var keyPressCount int = 0
+var mutex sync.Mutex
 
 type ButtonType int
 
@@ -196,16 +198,25 @@ func (b *ButtonType) String() string {
 }
 
 func get(str string) *http.Response {
-	req, _ := http.NewRequest("GET", "http://localhost:"+settings.Port+"/"+str, nil)
+	req, err := http.NewRequest("GET", "http://localhost:"+settings.Port+"/"+str, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
 	client := &http.Client{}
-	resp, _ := client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+	}
 	return resp
 }
 
 func getScreen() *bytes.Reader {
 	resp := get("screen")
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
 	return bytes.NewReader(body)
 }
 
@@ -300,6 +311,7 @@ func checkBanned(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
 		addBanned(bannedPlayer)
 		return true
 	}
+	return false
 }
 
 // Gets string from strings.json and replaces variables
@@ -370,11 +382,16 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	if checkBanned(s, i) {
 		return
 	}
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+	mutex.Lock()
 	get("input?" + button.String() + "=1")
-	get("step")
+	get("step?frames=30")
 	get("input?" + button.String() + "=0")
-	get("step")
+	get("step?frames=30")
 	reader := getScreen()
+	mutex.Unlock()
 	// Add score to leaderboard
 	if i.Member.User != nil {
 		found := false
@@ -398,25 +415,22 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 		keyPressCount = 0
 		saveLeaderboard()
 	}
-	footer := SR("footer", i)
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{
-				{
-					Image: &discordgo.MessageEmbedImage{
-						URL: "attachment://screen.png",
-					},
-					Footer: &discordgo.MessageEmbedFooter{
-						Text: "https://github.com/OFFTKP/pokemon-bot\n" + footer,
-					},
-				},
+	embeds := []*discordgo.MessageEmbed{
+		{
+			Image: &discordgo.MessageEmbedImage{
+				URL: "attachment://screen.png",
 			},
-			Files: []*discordgo.File{
-				{Name: "screen.png", Reader: reader},
+			Footer: &discordgo.MessageEmbedFooter{
+				Text: "https://github.com/OFFTKP/pokemon-bot",
 			},
-			Components: buttonComponents,
 		},
+	}
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Embeds: &embeds,
+		Files: []*discordgo.File{
+			{Name: "screen.png", Reader: reader},
+		},
+		Components: &buttonComponents,
 	})
 }
 
