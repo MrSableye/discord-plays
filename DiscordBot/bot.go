@@ -114,6 +114,9 @@ var (
 		"poke-unban": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			commandPokeUnban(s, i)
 		},
+		"status": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			commandStatus(s, i)
+		},
 	}
 )
 
@@ -496,6 +499,10 @@ func init() {
 					Required:    true,
 				},
 			},
+		},
+		{
+			Name:        "status",
+			Description: S["status"],
 		},
 	}
 	buttonComponents = []discordgo.MessageComponent{
