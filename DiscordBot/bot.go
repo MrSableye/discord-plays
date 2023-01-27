@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -73,6 +74,7 @@ var keyPressCount int = 0
 var mutex sync.Mutex
 var toggleKey int = 0
 var framesSteppedPressedInit = 0
+var executablePath string
 
 type ButtonType int
 
@@ -484,6 +486,10 @@ func respondScreen(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			Components: buttons,
 		},
 	})
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(reader)
+	screenBytes := buf.Bytes()
+	ioutil.WriteFile(executablePath+"/latest_save.png", screenBytes, 0644)
 }
 
 func getButtons() []discordgo.MessageComponent {
@@ -690,6 +696,11 @@ func RunBot(BotToken string) {
 	if err != nil {
 		log.Fatalf("Invalid bot parameters: %v", err)
 	}
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	executablePath = filepath.Dir(ex)
 	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
@@ -710,6 +721,7 @@ func RunBot(BotToken string) {
 	session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		fmt.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	})
+	get("load?path=" + executablePath + "/latest_save.png")
 	get("step")
 	session.Open()
 	_, err = session.ApplicationCommandBulkOverwrite(session.State.User.ID, "", commands)
