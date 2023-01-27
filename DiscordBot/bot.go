@@ -162,7 +162,15 @@ var (
 			press(s, i, ButtonA)
 		},
 		"press_b": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			press(s, i, ButtonB)
+			button := ButtonB
+			if toggleKey == 1 {
+				checkOk(get("input?" + button.String() + "=0"))
+				checkOk(get("step?frames=5"))
+			}
+			press(s, i, button)
+			if toggleKey == 1 {
+				checkOk(get("input?" + button.String() + "=1"))
+			}
 		},
 		"press_start": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			press(s, i, ButtonStart)
@@ -424,7 +432,7 @@ func hold(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	checkOk(get("input?B=" + strconv.Itoa(toggleKey)))
 	respondScreen(s, i)
 	mutex.Unlock()
-	settings.FramesSteppedPressed = framesSteppedPressedInit + toggleKey*60
+	settings.FramesSteppedPressed = framesSteppedPressedInit + settings.FramesSteppedToggle*toggleKey
 }
 
 func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
