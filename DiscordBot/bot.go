@@ -114,6 +114,9 @@ var (
 		"poke-unban": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			commandPokeUnban(s, i)
 		},
+		"poke-admin": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			commandPokeAdmin(s, i)
+		},
 		"status": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			commandStatus(s, i)
 		},
@@ -644,6 +647,18 @@ func init() {
 					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "user-id",
 					Description: S["unbanOptionUserId"],
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "poke-admin",
+			Description: S["poke-admin"],
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "user-id",
+					Description: S["adminOptionUserId"],
 					Required:    true,
 				},
 			},
