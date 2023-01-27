@@ -72,6 +72,7 @@ var leaderboard Leaderboard
 var keyPressCount int = 0
 var mutex sync.Mutex
 var toggleKey int = 0
+var framesSteppedPressedInit = 0
 
 type ButtonType int
 
@@ -418,6 +419,7 @@ func hold(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	checkOk(get("input?B=" + strconv.Itoa(toggleKey)))
 	respondScreen(s, i)
 	mutex.Unlock()
+	settings.FramesSteppedPressed = framesSteppedPressedInit + toggleKey*60
 }
 
 func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
@@ -667,6 +669,7 @@ func init() {
 }
 
 func RunBot(BotToken string) {
+	framesSteppedPressedInit = settings.FramesSteppedPressed
 	var err error
 	session, err = discordgo.New("Bot " + BotToken)
 	if err != nil {
