@@ -122,6 +122,12 @@ var (
 		"status": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			commandStatus(s, i)
 		},
+		"save": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			commandSave(s, i)
+		},
+		"load": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			commandLoad(s, i)
+		},
 	}
 )
 
@@ -147,30 +153,58 @@ func mustAdmin(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
 var (
 	componentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"press_left": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			if toggleKey == 1 {
+				checkOk(get("input?B=1"))
+				checkOk(get("step?frames=2"))
+				settings.FramesSteppedPressed = framesSteppedPressedInit + settings.FramesSteppedToggle*toggleKey
+			}
 			press(s, i, ButtonLeft)
+			if toggleKey == 1 {
+				settings.FramesSteppedPressed = framesSteppedPressedInit
+				checkOk(get("input?B=0"))
+			}
 		},
 		"press_right": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			if toggleKey == 1 {
+				checkOk(get("input?B=1"))
+				checkOk(get("step?frames=2"))
+				settings.FramesSteppedPressed = framesSteppedPressedInit + settings.FramesSteppedToggle*toggleKey
+			}
 			press(s, i, ButtonRight)
+			if toggleKey == 1 {
+				settings.FramesSteppedPressed = framesSteppedPressedInit
+				checkOk(get("input?B=0"))
+			}
 		},
 		"press_up": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			if toggleKey == 1 {
+				checkOk(get("input?B=1"))
+				checkOk(get("step?frames=2"))
+				settings.FramesSteppedPressed = framesSteppedPressedInit + settings.FramesSteppedToggle*toggleKey
+			}
 			press(s, i, ButtonUp)
+			if toggleKey == 1 {
+				settings.FramesSteppedPressed = framesSteppedPressedInit
+				checkOk(get("input?B=0"))
+			}
 		},
 		"press_down": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			if toggleKey == 1 {
+				checkOk(get("input?B=1"))
+				checkOk(get("step?frames=2"))
+				settings.FramesSteppedPressed = framesSteppedPressedInit + settings.FramesSteppedToggle*toggleKey
+			}
 			press(s, i, ButtonDown)
+			if toggleKey == 1 {
+				settings.FramesSteppedPressed = framesSteppedPressedInit
+				checkOk(get("input?B=0"))
+			}
 		},
 		"press_a": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			press(s, i, ButtonA)
 		},
 		"press_b": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			button := ButtonB
-			if toggleKey == 1 {
-				checkOk(get("input?" + button.String() + "=0"))
-				checkOk(get("step?frames=5"))
-			}
-			press(s, i, button)
-			if toggleKey == 1 {
-				checkOk(get("input?" + button.String() + "=1"))
-			}
+			press(s, i, ButtonB)
 		},
 		"press_start": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			press(s, i, ButtonStart)
@@ -428,11 +462,6 @@ func hold(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	} else {
 		toggleKey = 0
 	}
-	mutex.Lock()
-	checkOk(get("input?B=" + strconv.Itoa(toggleKey)))
-	respondScreen(s, i)
-	mutex.Unlock()
-	settings.FramesSteppedPressed = framesSteppedPressedInit + settings.FramesSteppedToggle*toggleKey
 }
 
 func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
@@ -680,6 +709,14 @@ func init() {
 		{
 			Name:        "status",
 			Description: S["status"],
+		},
+		{
+			Name:        "save",
+			Description: S["save"],
+		},
+		{
+			Name:        "load",
+			Description: S["load"],
 		},
 	}
 	bannedJson := RSF("banned.json")
