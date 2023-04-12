@@ -101,7 +101,7 @@ func configure() {
 		}
 		fmt.Println("Invalid input. Please enter a number between 1 and 3.")
 	}
-	settings = BotSettings{token, gamePath, serverPath, timeout, strconv.Itoa(port), startCommand, 60, 60, 30, 0}
+	settings = BotSettings{token, gamePath, serverPath, timeout, strconv.Itoa(port), startCommand, 5, 60, 30, 0}
 	settingsJson, err := json.Marshal(settings)
 	check(err)
 	fmt.Println("Writing config file...")
