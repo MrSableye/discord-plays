@@ -31,12 +31,6 @@ type BotSettings struct {
 var webserver *exec.Cmd
 var settings BotSettings
 
-func showMenu() {
-	fmt.Println("1. Run bot")
-	fmt.Println("2. Configure bot")
-	fmt.Println("3. Exit")
-}
-
 func configure() {
 	if configFile != "" {
 		fmt.Println("Config file already exists.")
@@ -57,9 +51,9 @@ func configure() {
 	fmt.Println("(https://discord.com/developers/applications -> Bot -> Copy Token)")
 	var token string
 	fmt.Scan(&token)
-	fmt.Println("Enter absolute path to backend executable:")
+	fmt.Println("Enter absolute path to backend executable (example: C:/Users/JohnDoe/Desktop/SkyEmu.exe):")
 	serverPath := GetAbsolutePath()
-	fmt.Println("Enter absolute path to game ROM:")
+	fmt.Println("Enter absolute path to game ROM (example: C:/Users/JohnDoe/Desktop/pokemon_gold.gba):")
 	gamePath := GetAbsolutePath()
 	timeout := 5
 	for {
@@ -186,19 +180,6 @@ func main() {
 	if configFile != "" {
 		run()
 	} else {
-		for {
-			showMenu()
-			var input int
-			fmt.Scan(&input)
-			switch input {
-			case 1:
-				run()
-			case 2:
-				configure()
-			case 3:
-				exit()
-			}
-			fmt.Println("Going back to menu:")
-		}
+		configure()
 	}
 }

@@ -35,6 +35,9 @@ func GetAbsolutePath() string {
 		fmt.Scan(&ret)
 		abs := filepath.IsAbs(ret)
 		exists := FileExists(ret)
+		if !exists {
+			fmt.Println("File does not exist. Please enter a valid path.")
+		}
 		if abs && exists {
 			break
 		}

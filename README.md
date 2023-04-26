@@ -17,9 +17,19 @@ A discord bot hosting a GB/GBC/GBA emulator!
 ## Instructions:
 To add this bot to your server, follow these instructions:
 
-- Compile the latest version of [SkyEmu](https://github.com/skylersaleh/SkyEmu)    
-- While in directory `DiscordBot`, run the command `go run .`     
-- Using the console menu, configure the bot. Make sure the generated config.json file is correct.    
+- Download (or compile) the latest version of SkyEmu
+  - Windows: https://nightly.link/skylersaleh/SkyEmu/workflows/deploy_win/dev/WindowsRelease.zip
+  - macOS: https://nightly.link/skylersaleh/SkyEmu/workflows/deploy_mac/dev/MacOSRelease.zip
+  - Linux: https://nightly.link/skylersaleh/SkyEmu/workflows/deploy_linux/dev/LinuxRelease.zip
+- While in directory `DiscordBot`, run the command `go build -o DiscordBot`     
+- This should create an executable named `DiscordBot`, which you can run using the terminal
+  - On Windows, open `cmd.exe`, navigate to the directory of the executable and run it by typing `DiscordBot.exe`
+  - On Linux, open your terminal emulator, navigate to the directory of the executable and run it by typing `./DiscordBot`
+- The first time you run the bot, it will help you create a configuration file    
+  - Make sure you use the token, not the application id or the public key!
+  <p float="center">
+    <img src="/token.png"/>
+  </p>
 - Run the bot!
 
 You should be able to use your own emulators if you follow the [SkyEmu API](https://github.com/skylersaleh/SkyEmu/blob/dev/docs/HTTP_CONTROL_SERVER.md)

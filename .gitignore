@@ -22,3 +22,6 @@ callgrind.out.*
 
 
 !strings.json
+!screenshot.png
+!screenshot2.png
+!token.png
