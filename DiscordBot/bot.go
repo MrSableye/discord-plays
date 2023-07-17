@@ -462,18 +462,49 @@ func hold(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	} else {
 		toggleKey = 0
 	}
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "Toggled running: " + strconv.Itoa(toggleKey),
+		},
+	})
 }
 
 func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
 	if checkBanned(s, i) {
 		return
 	}
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
 	mutex.Lock()
 	checkOk(get("input?" + button.String() + "=1"))
 	checkOk(get("step?frames=" + strconv.Itoa(settings.FramesSteppedPressed)))
 	checkOk(get("input?" + button.String() + "=0"))
 	checkOk(get("step?frames=" + strconv.Itoa(settings.FramesSteppedReleased)))
-	respondScreen(s, i)
+	reader := getScreen()
+	embeds := []*discordgo.MessageEmbed{
+		{
+			Image: &discordgo.MessageEmbedImage{
+				URL: "attachment://screen.png",
+			},
+			Footer: &discordgo.MessageEmbedFooter{
+				Text: SR("footer", i) + "\nhttps://github.com/OFFTKP/pokemon-bot",
+			},
+		},
+	}
+	buttons := getButtons()
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Embeds: &embeds,
+		Files: []*discordgo.File{
+			{Name: "screen.png", Reader: reader},
+		},
+		Components: &buttons,
+	})
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(reader)
+	screenBytes := buf.Bytes()
+	ioutil.WriteFile(executablePath+"/latest_save.png", screenBytes, 0644)
 	mutex.Unlock()
 	// Add score to leaderboard
 	if i.Member.User != nil {
@@ -498,35 +529,6 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 		keyPressCount = 0
 		saveLeaderboard()
 	}
-}
-
-func respondScreen(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	reader := getScreen()
-	embeds := []*discordgo.MessageEmbed{
-		{
-			Image: &discordgo.MessageEmbedImage{
-				URL: "attachment://screen.png",
-			},
-			Footer: &discordgo.MessageEmbedFooter{
-				Text: SR("footer", i) + "\nhttps://github.com/OFFTKP/pokemon-bot",
-			},
-		},
-	}
-	buttons := getButtons()
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds: embeds,
-			Files: []*discordgo.File{
-				{Name: "screen.png", Reader: reader},
-			},
-			Components: buttons,
-		},
-	})
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(reader)
-	screenBytes := buf.Bytes()
-	ioutil.WriteFile(executablePath+"/latest_save.png", screenBytes, 0644)
 }
 
 func getButtons() []discordgo.MessageComponent {
