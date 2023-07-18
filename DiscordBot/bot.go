@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -11,6 +12,7 @@ import (
 	"image/png"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -81,6 +83,8 @@ var mutex sync.Mutex
 var toggleKey int = 0
 var framesSteppedPressedInit = 0
 var executablePath string
+var transport *http.Transport
+var profiling bool = false
 
 type ButtonType int
 
@@ -492,6 +496,7 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	defer mutex.Unlock()
 	checkOk(get("input?" + button.String() + "=1"))
 	gifEncoder := gif.GIF{}
+	timeStart := time.Now()
 	var previousImage *bytes.Reader = getScreen()
 	for i := 0; i < settings.FramesSteppedPressed+settings.FramesSteppedReleased; i += settings.FramesToSample {
 		gifWg.Add(1)
@@ -506,6 +511,9 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	gifEncoder.LoopCount = -1
 	var buf bytes.Buffer
 	gif.EncodeAll(&buf, &gifEncoder)
+	if profiling {
+		log.Println("Time elapsed:", time.Since(timeStart))
+	}
 	embeds := []*discordgo.MessageEmbed{
 		{
 			Image: &discordgo.MessageEmbedImage{
@@ -747,6 +755,33 @@ func init() {
 	if leaderboard.Entries == nil {
 		fmt.Println("Leaderboard is nil, creating new one")
 		leaderboard.Entries = make([]LeaderboardEntry, 0)
+	}
+	transport = &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+	}
+
+	// Enable TCP_NODELAY
+	tcpConn := transport.DialContext
+	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		conn, err := tcpConn(ctx, network, addr)
+		if err != nil {
+			return nil, err
+		}
+
+		tcpConn, ok := conn.(*net.TCPConn)
+		if !ok {
+			return conn, nil
+		}
+
+		err = tcpConn.SetNoDelay(true)
+		if err != nil {
+			fmt.Println("Error setting TCP_NODELAY:", err)
+		}
+
+		return conn, nil
 	}
 }
 
