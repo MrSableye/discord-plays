@@ -485,24 +485,40 @@ func encodeAddGif(gifEncoder *gif.GIF, bytes *bytes.Reader) {
 	gifWg.Done()
 }
 
+var timeStart time.Time
+var deferredResponse bool = false
+
+// If response is taking too much time, defer it so the discord response doesn't time out
+func checkDeferResponse(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
+	// TODO: Defer time configurable
+	if time.Since(timeStart) > time.Second*2 {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		})
+		return true
+	}
+	return false
+}
+
 func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
 	if checkBanned(s, i) {
 		return
 	}
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-	})
 	mutex.Lock()
 	defer mutex.Unlock()
 	checkOk(get("input?" + button.String() + "=1"))
 	gifEncoder := gif.GIF{}
-	timeStart := time.Now()
+	timeStart = time.Now()
+	deferredResponse = false
 	var previousImage *bytes.Reader = getScreen()
 	var released = false
-	for i := 0; i < settings.FramesSteppedPressed+settings.FramesSteppedReleased; i += settings.FramesToSample {
+	for j := 0; j < settings.FramesSteppedPressed+settings.FramesSteppedReleased; j += settings.FramesToSample {
+		if !deferredResponse && checkDeferResponse(s, i) {
+			deferredResponse = true
+		}
 		gifWg.Add(1)
 		go encodeAddGif(&gifEncoder, previousImage)
-		if !released && i >= settings.FramesSteppedPressed {
+		if !released && j >= settings.FramesSteppedPressed {
 			checkOk(get("input?" + button.String() + "=0"))
 			released = true
 		}
@@ -527,13 +543,26 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 		},
 	}
 	buttons := getButtons()
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-		Embeds: &embeds,
-		Files: []*discordgo.File{
-			{Name: "screen.gif", Reader: &buf},
-		},
-		Components: &buttons,
-	})
+	if deferredResponse {
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Embeds: &embeds,
+			Files: []*discordgo.File{
+				{Name: "screen.gif", Reader: &buf},
+			},
+			Components: &buttons,
+		})
+	} else {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Embeds: embeds,
+				Files: []*discordgo.File{
+					{Name: "screen.gif", Reader: &buf},
+				},
+				Components: buttons,
+			},
+		})
+	}
 	screenBytes := buf.Bytes()
 	ioutil.WriteFile(executablePath+"/latest_save.png", screenBytes, 0644)
 	// Add score to leaderboard
