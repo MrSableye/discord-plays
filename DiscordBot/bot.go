@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	"image/color/palette"
+	"image/color"
 	"image/draw"
 	"image/gif"
 	"image/png"
@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/ericpauley/go-quantize/quantize"
 )
 
 type Pokemon struct {
@@ -462,13 +463,17 @@ func hold(s *discordgo.Session, i *discordgo.InteractionCreate) {
 }
 
 var gifWg sync.WaitGroup
+var quantizer quantize.MedianCutQuantizer = quantize.MedianCutQuantizer{
+	Aggregation: quantize.Mode,
+}
 
 func encodeAddGif(gifEncoder *gif.GIF, bytes *bytes.Reader) {
 	img, err := png.Decode(bytes)
 	if err != nil {
 		panic(err)
 	}
-	palettedImg := image.NewPaletted(img.Bounds(), palette.Plan9)
+	myPalette := quantizer.Quantize(make([]color.Color, 0, 256), img)
+	palettedImg := image.NewPaletted(img.Bounds(), myPalette)
 	draw.Draw(palettedImg, img.Bounds(), img, image.Point{}, draw.Src)
 	gifEncoder.Image = append(gifEncoder.Image, palettedImg)
 	// TODO: Frame delay should be configurable
