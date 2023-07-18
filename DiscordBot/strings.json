@@ -38,7 +38,7 @@
     "userNotBanned": "User %NAME% tried to unban user <@%OPTION0%> but they are not banned",
     "userAlreadyBanned": "User %NAME% tried to ban user <@%OPTION0%> but they are already banned",
     "userUnbanned": "User %NAME% has unbanned user <@%OPTION0%>",
-    "footer": "Last button press by %NAME% (%ID%)",
+    "footer": "%NAME% (%ID%)",
     "notAdmin": "You are not an admin: <@%ID%>",
     "save": "Save the current game state and get a file of the save",
     "load": "Load from the latest /save (admin only)",

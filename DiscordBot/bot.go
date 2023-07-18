@@ -507,7 +507,7 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 				URL: "attachment://screen.gif",
 			},
 			Footer: &discordgo.MessageEmbedFooter{
-				Text: SR("footer", i) + "\nhttps://github.com/OFFTKP/pokemon-bot",
+				Text: SR("footer", i),
 			},
 		},
 	}
