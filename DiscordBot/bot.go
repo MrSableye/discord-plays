@@ -472,7 +472,7 @@ func encodeAddGif(gifEncoder *gif.GIF, bytes *bytes.Reader) {
 	draw.Draw(palettedImg, img.Bounds(), img, image.Point{}, draw.Src)
 	gifEncoder.Image = append(gifEncoder.Image, palettedImg)
 	// TODO: Frame delay should be configurable
-	gifEncoder.Delay = append(gifEncoder.Delay, 5)
+	gifEncoder.Delay = append(gifEncoder.Delay, 10)
 	gifWg.Done()
 }
 
@@ -491,7 +491,7 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	for i := 0; i < settings.FramesSteppedPressed+settings.FramesSteppedReleased; i += settings.FramesToSample {
 		gifWg.Add(1)
 		go encodeAddGif(&gifEncoder, previousImage)
-		if i > settings.FramesSteppedPressed {
+		if i >= settings.FramesSteppedPressed {
 			checkOk(get("input?" + button.String() + "=0"))
 		}
 		checkOk(get("step?frames=" + strconv.Itoa(settings.FramesToSample)))
