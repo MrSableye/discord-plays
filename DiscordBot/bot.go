@@ -498,11 +498,13 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	gifEncoder := gif.GIF{}
 	timeStart := time.Now()
 	var previousImage *bytes.Reader = getScreen()
+	var released = false
 	for i := 0; i < settings.FramesSteppedPressed+settings.FramesSteppedReleased; i += settings.FramesToSample {
 		gifWg.Add(1)
 		go encodeAddGif(&gifEncoder, previousImage)
-		if i >= settings.FramesSteppedPressed {
+		if !released && i >= settings.FramesSteppedPressed {
 			checkOk(get("input?" + button.String() + "=0"))
+			released = true
 		}
 		checkOk(get("step?frames=" + strconv.Itoa(settings.FramesToSample)))
 		gifWg.Wait()
