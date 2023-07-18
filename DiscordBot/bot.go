@@ -4,6 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/color/palette"
+	"image/draw"
+	"image/gif"
+	"image/png"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -89,6 +94,8 @@ const (
 	ButtonSelect
 	ButtonL
 	ButtonR
+	ButtonX
+	ButtonY
 )
 
 var (
@@ -153,52 +160,26 @@ func mustAdmin(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
 var (
 	componentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"press_left": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if toggleKey == 1 {
-				checkOk(get("input?B=1"))
-				checkOk(get("step?frames=2"))
-				settings.FramesSteppedPressed = framesSteppedPressedInit + settings.FramesSteppedToggle*toggleKey
-			}
+			// TODO: add way to hold dpad
+			// if toggleKey == 1 {
+			// 	checkOk(get("input?B=1"))
+			// 	checkOk(get("step?frames=2"))
+			// 	settings.FramesSteppedPressed = framesSteppedPressedInit + settings.FramesSteppedToggle*toggleKey
+			// }
 			press(s, i, ButtonLeft)
-			if toggleKey == 1 {
-				settings.FramesSteppedPressed = framesSteppedPressedInit
-				checkOk(get("input?B=0"))
-			}
+			// if toggleKey == 1 {
+			// 	settings.FramesSteppedPressed = framesSteppedPressedInit
+			// 	checkOk(get("input?B=0"))
+			// }
 		},
 		"press_right": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if toggleKey == 1 {
-				checkOk(get("input?B=1"))
-				checkOk(get("step?frames=2"))
-				settings.FramesSteppedPressed = framesSteppedPressedInit + settings.FramesSteppedToggle*toggleKey
-			}
 			press(s, i, ButtonRight)
-			if toggleKey == 1 {
-				settings.FramesSteppedPressed = framesSteppedPressedInit
-				checkOk(get("input?B=0"))
-			}
 		},
 		"press_up": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if toggleKey == 1 {
-				checkOk(get("input?B=1"))
-				checkOk(get("step?frames=2"))
-				settings.FramesSteppedPressed = framesSteppedPressedInit + settings.FramesSteppedToggle*toggleKey
-			}
 			press(s, i, ButtonUp)
-			if toggleKey == 1 {
-				settings.FramesSteppedPressed = framesSteppedPressedInit
-				checkOk(get("input?B=0"))
-			}
 		},
 		"press_down": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if toggleKey == 1 {
-				checkOk(get("input?B=1"))
-				checkOk(get("step?frames=2"))
-				settings.FramesSteppedPressed = framesSteppedPressedInit + settings.FramesSteppedToggle*toggleKey
-			}
 			press(s, i, ButtonDown)
-			if toggleKey == 1 {
-				settings.FramesSteppedPressed = framesSteppedPressedInit
-				checkOk(get("input?B=0"))
-			}
 		},
 		"press_a": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			press(s, i, ButtonA)
@@ -217,6 +198,12 @@ var (
 		},
 		"press_r": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			press(s, i, ButtonR)
+		},
+		"press_x": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			press(s, i, ButtonX)
+		},
+		"press_y": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			press(s, i, ButtonY)
 		},
 		"hold": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			hold(s, i)
@@ -246,6 +233,10 @@ func (b *ButtonType) String() string {
 		return "L"
 	case ButtonR:
 		return "R"
+	case ButtonX:
+		return "X"
+	case ButtonY:
+		return "Y"
 	}
 	return ""
 }
@@ -470,6 +461,21 @@ func hold(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	})
 }
 
+var gifWg sync.WaitGroup
+
+func encodeAddGif(gifEncoder *gif.GIF, bytes *bytes.Reader) {
+	img, err := png.Decode(bytes)
+	if err != nil {
+		panic(err)
+	}
+	palettedImg := image.NewPaletted(img.Bounds(), palette.Plan9)
+	draw.Draw(palettedImg, img.Bounds(), img, image.Point{}, draw.Src)
+	gifEncoder.Image = append(gifEncoder.Image, palettedImg)
+	// TODO: Frame delay should be configurable
+	gifEncoder.Delay = append(gifEncoder.Delay, 5)
+	gifWg.Done()
+}
+
 func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
 	if checkBanned(s, i) {
 		return
@@ -478,15 +484,27 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
 	mutex.Lock()
+	defer mutex.Unlock()
 	checkOk(get("input?" + button.String() + "=1"))
-	checkOk(get("step?frames=" + strconv.Itoa(settings.FramesSteppedPressed)))
-	checkOk(get("input?" + button.String() + "=0"))
-	checkOk(get("step?frames=" + strconv.Itoa(settings.FramesSteppedReleased)))
-	reader := getScreen()
+	gifEncoder := gif.GIF{}
+	var previousImage *bytes.Reader = getScreen()
+	for i := 0; i < settings.FramesSteppedPressed+settings.FramesSteppedReleased; i += settings.FramesToSample {
+		gifWg.Add(1)
+		go encodeAddGif(&gifEncoder, previousImage)
+		if i > settings.FramesSteppedPressed {
+			checkOk(get("input?" + button.String() + "=0"))
+		}
+		checkOk(get("step?frames=" + strconv.Itoa(settings.FramesToSample)))
+		gifWg.Wait()
+		previousImage = getScreen()
+	}
+	gifEncoder.LoopCount = -1
+	var buf bytes.Buffer
+	gif.EncodeAll(&buf, &gifEncoder)
 	embeds := []*discordgo.MessageEmbed{
 		{
 			Image: &discordgo.MessageEmbedImage{
-				URL: "attachment://screen.png",
+				URL: "attachment://screen.gif",
 			},
 			Footer: &discordgo.MessageEmbedFooter{
 				Text: SR("footer", i) + "\nhttps://github.com/OFFTKP/pokemon-bot",
@@ -497,15 +515,12 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Embeds: &embeds,
 		Files: []*discordgo.File{
-			{Name: "screen.png", Reader: reader},
+			{Name: "screen.gif", Reader: &buf},
 		},
 		Components: &buttons,
 	})
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(reader)
 	screenBytes := buf.Bytes()
 	ioutil.WriteFile(executablePath+"/latest_save.png", screenBytes, 0644)
-	mutex.Unlock()
 	// Add score to leaderboard
 	if i.Member.User != nil {
 		found := false
@@ -532,12 +547,6 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 }
 
 func getButtons() []discordgo.MessageComponent {
-	var toggleStr string
-	if toggleKey == 1 {
-		toggleStr = "keyToggleOnText"
-	} else {
-		toggleStr = "keyToggleOffText"
-	}
 	return []discordgo.MessageComponent{
 		discordgo.ActionsRow{
 			Components: []discordgo.MessageComponent{
@@ -562,9 +571,9 @@ func getButtons() []discordgo.MessageComponent {
 					CustomID: "press_a",
 				},
 				discordgo.Button{
-					Label:    S[toggleStr],
+					Label:    S["keyXText"],
 					Style:    discordgo.SecondaryButton,
-					CustomID: "hold",
+					CustomID: "press_x",
 				},
 			},
 		},
@@ -587,10 +596,10 @@ func getButtons() []discordgo.MessageComponent {
 					CustomID: "press_right",
 				},
 				discordgo.Button{
-					Label:    S["keyEmptyText"],
+					Label:    S["keyYText"],
 					Style:    discordgo.SecondaryButton,
-					Disabled: true,
-					CustomID: "disabled_ll",
+					Disabled: false,
+					CustomID: "press_y",
 				},
 				discordgo.Button{
 					Label:    S["keyBText"],

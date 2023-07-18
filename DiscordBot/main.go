@@ -25,6 +25,7 @@ type BotSettings struct {
 	FramesSteppedPressed  int
 	FramesSteppedReleased int
 	FramesSteppedToggle   int
+	FramesToSample        int
 	Debug                 int
 }
 
@@ -95,7 +96,7 @@ func configure() {
 		}
 		fmt.Println("Invalid input. Please enter a number between 1 and 3.")
 	}
-	settings = BotSettings{token, gamePath, serverPath, timeout, strconv.Itoa(port), startCommand, 5, 60, 30, 0}
+	settings = BotSettings{token, gamePath, serverPath, timeout, strconv.Itoa(port), startCommand, 5, 60, 30, 0, 5}
 	settingsJson, err := json.Marshal(settings)
 	check(err)
 	fmt.Println("Writing config file...")
@@ -177,6 +178,10 @@ func exit() {
 func main() {
 	configFile = RSF("config.json")
 	json.Unmarshal([]byte(configFile), &settings)
+	if settings.FramesToSample == 0 {
+		fmt.Println("FramesToSample cannot be 0. Setting to 5.")
+		settings.FramesToSample = 5
+	}
 	if configFile != "" {
 		run()
 	} else {
