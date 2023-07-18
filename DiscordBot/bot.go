@@ -9,7 +9,6 @@ import (
 	"image/color"
 	"image/draw"
 	"image/gif"
-	"image/png"
 	"io/ioutil"
 	"log"
 	"net"
@@ -25,6 +24,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/ericpauley/go-quantize/quantize"
+	"golang.org/x/image/bmp"
 )
 
 type Pokemon struct {
@@ -281,8 +281,8 @@ func checkOk(resp *http.Response) bool {
 	return true
 }
 
-func getScreen() *bytes.Reader {
-	resp := get("screen")
+func getScreen(format string) *bytes.Reader {
+	resp := get("screen?format=" + format)
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -471,8 +471,9 @@ var quantizer quantize.MedianCutQuantizer = quantize.MedianCutQuantizer{
 	Aggregation: quantize.Mode,
 }
 
-func encodeAddGif(gifEncoder *gif.GIF, bytes *bytes.Reader) {
-	img, err := png.Decode(bytes)
+func encodeAddGif(gifEncoder *gif.GIF) {
+	bytes := getScreen("bmp")
+	img, err := bmp.Decode(bytes)
 	if err != nil {
 		panic(err)
 	}
@@ -510,22 +511,20 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	gifEncoder := gif.GIF{}
 	timeStart = time.Now()
 	deferredResponse = false
-	var previousImage *bytes.Reader = getScreen()
 	var released = false
 	for j := 0; j < settings.FramesSteppedPressed+settings.FramesSteppedReleased; j += settings.FramesToSample {
 		if !deferredResponse && checkDeferResponse(s, i) {
 			deferredResponse = true
 		}
 		gifWg.Add(1)
-		go encodeAddGif(&gifEncoder, previousImage)
 		if !released && j >= settings.FramesSteppedPressed {
 			checkOk(get("input?" + button.String() + "=0"))
 			released = true
 		}
 		checkOk(get("step?frames=" + strconv.Itoa(settings.FramesToSample)))
-		gifWg.Wait()
-		previousImage = getScreen()
+		go encodeAddGif(&gifEncoder)
 	}
+	gifWg.Wait()
 	gifEncoder.LoopCount = -1
 	var buf bytes.Buffer
 	gif.EncodeAll(&buf, &gifEncoder)
@@ -846,7 +845,7 @@ func RunBot(BotToken string) {
 		return
 	}
 	session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
-		fmt.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
+		fmt.Printf("Logged in as: %v#%v\n", s.State.User.Username, s.State.User.Discriminator)
 	})
 	get("load?path=" + executablePath + "/latest_save.png")
 	get("step")
