@@ -1,10 +1,9 @@
 # pokemon-bot 
 
-A discord bot hosting a GB/GBC/GBA emulator!
+A discord bot hosting a GB/GBC/GBA/NDS (and soon a 3DS) emulator!
 
 <p float="center">
-  <img src="/screenshot.png" height="250" />
-  <img src="/screenshot2.png" height="250" />
+  <img src="/movie.gif"/>
 </p>
 
 ## Commands:
