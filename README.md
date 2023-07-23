@@ -43,6 +43,15 @@ Example: `["21318712398012", "19238129031092"]` will have 2 admins with those id
 
 Banned users can't use bot commands.    
 
+## Compatibility with emulators
+Pokemon-Bot strives to provide a simple interface that can be easily hooked to various emulators if they provide the necessary APIs.
+<br>
+At the moment, Pokemon-Bot has been successfully connected to the following emulators:
+
+- The GameBoy core of [Hydra](https://github.com/OFFTKP/hydra): The emulator that inspired the project.
+- [SkyEmu](https://github.com/skylersaleh/SkyEmu): Provides GB(C), GBA and NDS emulation
+- [Panda3DS](https://github.com/wheremyfoodat/Panda3DS): Provides 3DS emulation
+
 ## Ack
 Thanks to Sky for [SkyEmu](https://github.com/skylersaleh/SkyEmu)    
 and my friends at the emudev discord.
