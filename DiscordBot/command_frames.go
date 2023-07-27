@@ -1,0 +1,21 @@
+package main
+
+import (
+	"strconv"
+
+	"github.com/bwmarrin/discordgo"
+)
+
+func commandFrames(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if checkBanned(s, i) {
+		return
+	}
+	settings.FramesSteppedPressed = int(i.ApplicationCommandData().Options[0].IntValue())
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "Frames set to " + strconv.Itoa(settings.FramesSteppedPressed),
+		},
+	})
+	check(err)
+}

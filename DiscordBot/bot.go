@@ -143,6 +143,9 @@ var (
 		"load": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			commandLoad(s, i)
 		},
+		"frames": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			commandFrames(s, i)
+		},
 	}
 )
 
@@ -787,6 +790,19 @@ func init() {
 		{
 			Name:        "load",
 			Description: S["load"],
+		},
+		{
+			Name:        "frames",
+			Description: S["frames"],
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "frames-pressed",
+					Description: S["framesOptionFramesPressed"],
+					Required:    true,
+					MaxValue:    1000,
+				},
+			},
 		},
 	}
 	bannedJson := RSF("banned.json")
