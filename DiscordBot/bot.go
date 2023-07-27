@@ -489,12 +489,13 @@ func encodeAddGif(gifEncoder *gif.GIF) {
 		panic(err)
 	}
 
+	if settings.WidthOfImage != 0 {
+		img = resize.Resize(settings.WidthOfImage, 0, img, resize.Lanczos3)
+	}
+
 	myPalette := quantizer.Quantize(make([]color.Color, 0, 256), img)
 	palettedImg := image.NewPaletted(img.Bounds(), myPalette)
 	draw.Draw(palettedImg, img.Bounds(), img, image.Point{}, draw.Src)
-	if settings.WidthOfImage != 0 {
-		resize.Resize(settings.WidthOfImage, 0, palettedImg, resize.Lanczos3)
-	}
 	gifEncoder.Image = append(gifEncoder.Image, palettedImg)
 	gifEncoder.Delay = append(gifEncoder.Delay, settings.FrameDelayGif)
 	gifWg.Done()
