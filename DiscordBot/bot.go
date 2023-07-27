@@ -796,6 +796,9 @@ func init() {
 	if adminsJson != "" {
 		json.Unmarshal([]byte(adminsJson), &admins)
 	}
+	for _, admin := range admins {
+		fmt.Printf("Admin: %s\n", admin)
+	}
 	json.Unmarshal([]byte(RSF("leaderboard.json")), &leaderboard)
 	if leaderboard.Entries == nil {
 		fmt.Println("Leaderboard is nil, creating new one")
