@@ -9,6 +9,8 @@ import (
 	"image/color"
 	"image/draw"
 	"image/gif"
+	"image/jpeg"
+	"image/png"
 	"io/ioutil"
 	"log"
 	"net"
@@ -24,6 +26,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/ericpauley/go-quantize/quantize"
+	"github.com/nfnt/resize"
 	"golang.org/x/image/bmp"
 )
 
@@ -152,6 +155,7 @@ func mustAdmin(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
 		}
 	}
 	if !contains {
+		fmt.Printf("User %s tried to use an admin command\n", i.Member.User.ID)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -472,17 +476,30 @@ var quantizer quantize.MedianCutQuantizer = quantize.MedianCutQuantizer{
 }
 
 func encodeAddGif(gifEncoder *gif.GIF) {
-	bytes := getScreen("bmp")
-	img, err := bmp.Decode(bytes)
+	bytes := getScreen(settings.ImageFormat)
+	var img image.Image
+	var err error
+	if settings.ImageFormat == "png" {
+		img, err = png.Decode(bytes)
+	} else if settings.ImageFormat == "jpg" {
+		img, err = jpeg.Decode(bytes)
+	} else if settings.ImageFormat == "bmp" {
+		img, err = bmp.Decode(bytes)
+	} else {
+		panic("Unknown image format: " + settings.ImageFormat)
+	}
 	if err != nil {
 		panic(err)
 	}
+
 	myPalette := quantizer.Quantize(make([]color.Color, 0, 256), img)
 	palettedImg := image.NewPaletted(img.Bounds(), myPalette)
 	draw.Draw(palettedImg, img.Bounds(), img, image.Point{}, draw.Src)
+	if settings.WidthOfImage != 0 {
+		resize.Resize(settings.WidthOfImage, 0, palettedImg, resize.Lanczos3)
+	}
 	gifEncoder.Image = append(gifEncoder.Image, palettedImg)
-	// TODO: Frame delay should be configurable
-	gifEncoder.Delay = append(gifEncoder.Delay, 10)
+	gifEncoder.Delay = append(gifEncoder.Delay, settings.FrameDelay)
 	gifWg.Done()
 }
 

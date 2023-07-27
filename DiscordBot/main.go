@@ -26,7 +26,10 @@ type BotSettings struct {
 	FramesSteppedReleased int
 	FramesSteppedToggle   int
 	FramesToSample        int
+	WidthOfImage          uint
+	ImageFormat           string
 	Debug                 int
+	FrameDelay            int
 }
 
 var webserver *exec.Cmd
@@ -96,7 +99,7 @@ func configure() {
 		}
 		fmt.Println("Invalid input. Please enter a number between 1 and 3.")
 	}
-	settings = BotSettings{token, gamePath, serverPath, timeout, strconv.Itoa(port), startCommand, 5, 60, 30, 0, 5}
+	settings = BotSettings{token, gamePath, serverPath, timeout, strconv.Itoa(port), startCommand, 5, 60, 30, 5, 0, "bmp", 0, 10}
 	settingsJson, err := json.Marshal(settings)
 	check(err)
 	fmt.Println("Writing config file...")
