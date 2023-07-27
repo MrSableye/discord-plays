@@ -295,6 +295,26 @@ func getScreen(format string) *bytes.Reader {
 	return bytes.NewReader(body)
 }
 
+func getScreenImageResized() image.Image {
+	bytes := getScreen(settings.ImageFormat)
+	var img image.Image
+	var err error
+	if settings.ImageFormat == "png" {
+		img, err = png.Decode(bytes)
+	} else if settings.ImageFormat == "jpg" {
+		img, err = jpeg.Decode(bytes)
+	} else if settings.ImageFormat == "bmp" {
+		img, err = bmp.Decode(bytes)
+	} else {
+		panic("Unknown image format: " + settings.ImageFormat)
+	}
+	check(err)
+	if settings.WidthOfImage != 0 {
+		img = resize.Resize(settings.WidthOfImage, 0, img, resize.Lanczos3)
+	}
+	return img
+}
+
 func ordinal(i int) string {
 	j := i % 10
 	str := strconv.Itoa(i)
@@ -473,26 +493,7 @@ var quantizer quantize.MedianCutQuantizer = quantize.MedianCutQuantizer{
 }
 
 func encodeAddGif(gifEncoder *gif.GIF) {
-	bytes := getScreen(settings.ImageFormat)
-	var img image.Image
-	var err error
-	if settings.ImageFormat == "png" {
-		img, err = png.Decode(bytes)
-	} else if settings.ImageFormat == "jpg" {
-		img, err = jpeg.Decode(bytes)
-	} else if settings.ImageFormat == "bmp" {
-		img, err = bmp.Decode(bytes)
-	} else {
-		panic("Unknown image format: " + settings.ImageFormat)
-	}
-	if err != nil {
-		panic(err)
-	}
-
-	if settings.WidthOfImage != 0 {
-		img = resize.Resize(settings.WidthOfImage, 0, img, resize.Lanczos3)
-	}
-
+	img := getScreenImageResized()
 	myPalette := quantizer.Quantize(make([]color.Color, 0, 256), img)
 	palettedImg := image.NewPaletted(img.Bounds(), myPalette)
 	draw.Draw(palettedImg, img.Bounds(), img, image.Point{}, draw.Src)

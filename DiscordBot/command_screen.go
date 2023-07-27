@@ -1,6 +1,12 @@
 package main
 
-import "github.com/bwmarrin/discordgo"
+import (
+	"bytes"
+	"image/png"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/nfnt/resize"
+)
 
 func commandScreen(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if checkBanned(s, i) {
@@ -10,6 +16,12 @@ func commandScreen(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
 	reader := getScreen("png")
+	img, err := png.Decode(reader)
+	check(err)
+	img = resize.Resize(settings.WidthOfImage, 0, img, resize.Lanczos3)
+	writer := new(bytes.Buffer)
+	err = png.Encode(writer, img)
+	check(err)
 	embeds := []*discordgo.MessageEmbed{
 		{
 			Image: &discordgo.MessageEmbedImage{
@@ -24,7 +36,7 @@ func commandScreen(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Embeds: &embeds,
 		Files: []*discordgo.File{
-			{Name: "screen.png", Reader: reader},
+			{Name: "screen.png", Reader: writer},
 		},
 		Components: &buttons,
 	})
