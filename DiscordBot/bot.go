@@ -532,15 +532,15 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 		if !deferredResponse && checkDeferResponse(s, i) {
 			deferredResponse = true
 		}
-		gifWg.Add(1)
 		if !released && j >= settings.FramesSteppedPressed {
 			checkOk(get("input?" + button.String() + "=0"))
 			released = true
 		}
-		checkOk(get("step?frames=" + strconv.Itoa(settings.FramesToSample)))
+		gifWg.Add(1)
 		go encodeAddGif(&gifEncoder)
+		checkOk(get("step?frames=" + strconv.Itoa(settings.FramesToSample)))
+		gifWg.Wait()
 	}
-	gifWg.Wait()
 	gifEncoder.LoopCount = -1
 	var buf bytes.Buffer
 	gif.EncodeAll(&buf, &gifEncoder)
