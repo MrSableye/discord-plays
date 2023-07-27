@@ -358,10 +358,7 @@ func checkBanned(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
 			}
 		}
 	}
-	days, err := strconv.Atoi(S["guildDaysConsideredTooYoung"])
-	if err != nil {
-		days = 0
-	}
+	days := settings.DaysConsideredTooYoung
 	if i.Member.JoinedAt.After(time.Now().AddDate(0, 0, -days)) {
 		unbanDate := time.Now().AddDate(0, 0, days)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -499,7 +496,7 @@ func encodeAddGif(gifEncoder *gif.GIF) {
 		resize.Resize(settings.WidthOfImage, 0, palettedImg, resize.Lanczos3)
 	}
 	gifEncoder.Image = append(gifEncoder.Image, palettedImg)
-	gifEncoder.Delay = append(gifEncoder.Delay, settings.FrameDelay)
+	gifEncoder.Delay = append(gifEncoder.Delay, settings.FrameDelayGif)
 	gifWg.Done()
 }
 

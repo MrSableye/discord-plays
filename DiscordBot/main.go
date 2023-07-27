@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -16,20 +15,35 @@ import (
 var configFile string
 
 type BotSettings struct {
-	Token                 string
-	GamePath              string
-	ServerPath            string
-	TimeoutSeconds        int
-	Port                  string
-	StartCommand          string
-	FramesSteppedPressed  int
-	FramesSteppedReleased int
-	FramesSteppedToggle   int
-	FramesToSample        int
-	WidthOfImage          uint
-	ImageFormat           string
-	Debug                 int
-	FrameDelay            int
+	Token                  string
+	GamePath               string
+	ServerPath             string
+	TimeoutSeconds         int
+	Port                   string
+	StartCommand           string
+	FramesSteppedPressed   int
+	FramesSteppedReleased  int
+	FramesSteppedToggle    int
+	FramesToSample         int
+	WidthOfImage           uint
+	ImageFormat            string
+	Debug                  int
+	FrameDelayGif          int
+	DaysConsideredTooYoung int
+}
+
+func DefaultBotSettings() BotSettings {
+	var newSettings BotSettings
+	newSettings.FramesSteppedPressed = 10
+	newSettings.FramesSteppedReleased = 50
+	newSettings.FramesSteppedToggle = 20
+	newSettings.FramesToSample = 5
+	newSettings.WidthOfImage = 0
+	newSettings.ImageFormat = "bmp"
+	newSettings.Debug = 0
+	newSettings.FrameDelayGif = 10
+	newSettings.DaysConsideredTooYoung = 0
+	return newSettings
 }
 
 var webserver *exec.Cmd
@@ -99,11 +113,11 @@ func configure() {
 		}
 		fmt.Println("Invalid input. Please enter a number between 1 and 3.")
 	}
-	settings = BotSettings{token, gamePath, serverPath, timeout, strconv.Itoa(port), startCommand, 5, 60, 30, 5, 0, "bmp", 0, 10}
+	settings = BotSettings{token, gamePath, serverPath, timeout, strconv.Itoa(port), startCommand, 5, 60, 30, 5, 0, "bmp", 0, 10, 0}
 	settingsJson, err := json.Marshal(settings)
 	check(err)
 	fmt.Println("Writing config file...")
-	ioutil.WriteFile("config.json", settingsJson, 0644)
+	os.WriteFile("config.json", settingsJson, 0644)
 	configFile = RSF("config.json")
 	fmt.Println("Bot configured successfully.")
 }
@@ -171,16 +185,11 @@ func run() {
 	showPanel()
 }
 
-func exit() {
-	if webserver != nil {
-		webserver.Process.Kill()
-	}
-	os.Exit(0)
-}
-
 func main() {
+	settings = DefaultBotSettings()
 	configFile = RSF("config.json")
-	json.Unmarshal([]byte(configFile), &settings)
+	err := json.Unmarshal([]byte(configFile), &settings)
+	check(err)
 	if settings.FramesToSample == 0 {
 		fmt.Println("FramesToSample cannot be 0. Setting to 5.")
 		settings.FramesToSample = 5
