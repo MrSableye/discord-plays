@@ -189,14 +189,10 @@ func run() {
 func main() {
 	settings = DefaultBotSettings()
 	configFile = RSF("config.json")
-	err := json.Unmarshal([]byte(configFile), &settings)
-	initialFramesSteppedPressed = settings.FramesSteppedPressed
-	check(err)
-	if settings.FramesToSample == 0 {
-		fmt.Println("FramesToSample cannot be 0. Setting to 5.")
-		settings.FramesToSample = 5
-	}
 	if configFile != "" {
+		err := json.Unmarshal([]byte(configFile), &settings)
+		check(err)
+		initialFramesSteppedPressed = settings.FramesSteppedPressed
 		run()
 	} else {
 		configure()
