@@ -48,6 +48,7 @@ func DefaultBotSettings() BotSettings {
 
 var webserver *exec.Cmd
 var settings BotSettings
+var initialFramesSteppedPressed int
 
 func configure() {
 	if configFile != "" {
@@ -189,6 +190,7 @@ func main() {
 	settings = DefaultBotSettings()
 	configFile = RSF("config.json")
 	err := json.Unmarshal([]byte(configFile), &settings)
+	initialFramesSteppedPressed = settings.FramesSteppedPressed
 	check(err)
 	if settings.FramesToSample == 0 {
 		fmt.Println("FramesToSample cannot be 0. Setting to 5.")

@@ -88,6 +88,7 @@ var framesSteppedPressedInit = 0
 var executablePath string
 var transport *http.Transport
 var profiling bool = false
+var lastPressTime time.Time
 
 type ButtonType int
 
@@ -526,6 +527,12 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	}
 	mutex.Lock()
 	defer mutex.Unlock()
+	timeSincePress := time.Since(lastPressTime)
+	lastPressTime = time.Now()
+	if timeSincePress > time.Minute*2 {
+		// Reset frame pressed count
+		settings.FramesSteppedPressed = initialFramesSteppedPressed
+	}
 	checkOk(get("input?" + button.String() + "=1"))
 	gifEncoder := gif.GIF{}
 	timeStart = time.Now()
