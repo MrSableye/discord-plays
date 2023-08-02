@@ -39,7 +39,6 @@
     "userUnbanned": "User %NAME% has unbanned user <@%OPTION0%>",
     "frames": "Set the number of frames to press the button for",
     "framesOptionFramesPressed": "The number of frames to press the button for",
-    "footer": "%NAME% (%ID%)",
     "notAdmin": "You are not an admin: <@%ID%>",
     "save": "Save the current game state and get a file of the save",
     "load": "Load from the latest /save (admin only)",

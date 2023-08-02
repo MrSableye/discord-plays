@@ -28,6 +28,9 @@ import (
 	"github.com/ericpauley/go-quantize/quantize"
 	"github.com/nfnt/resize"
 	"golang.org/x/image/bmp"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/math/fixed"
 )
 
 type Pokemon struct {
@@ -76,6 +79,12 @@ type BannedPlayer struct {
 	Reason    string
 }
 
+type KeyPress struct {
+	Name       string
+	KeyPressed string
+}
+
+var lastKeyPresses []KeyPress
 var bannedPlayers []BannedPlayer
 var admins []string
 var S map[string]string
@@ -84,7 +93,6 @@ var leaderboard Leaderboard
 var keyPressCount int = 0
 var mutex sync.Mutex
 var toggleKey int = 0
-var framesSteppedPressedInit = 0
 var executablePath string
 var transport *http.Transport
 var profiling bool = false
@@ -289,7 +297,7 @@ func checkOk(resp *http.Response) bool {
 	return true
 }
 
-func getScreen(format string) *bytes.Reader {
+func getScreenshot(format string) *bytes.Reader {
 	resp := get("screen?format=" + format)
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
@@ -299,8 +307,8 @@ func getScreen(format string) *bytes.Reader {
 	return bytes.NewReader(body)
 }
 
-func getScreenImageResized() image.Image {
-	bytes := getScreen(settings.ImageFormat)
+func getScreenshotResized() image.Image {
+	bytes := getScreenshot(settings.ImageFormat)
 	var img image.Image
 	var err error
 	if settings.ImageFormat == "png" {
@@ -496,11 +504,41 @@ var quantizer quantize.MedianCutQuantizer = quantize.MedianCutQuantizer{
 	Aggregation: quantize.Mode,
 }
 
+func editImage(img *image.RGBA, startWidth int) {
+	// Fill background
+	draw.Draw(img, image.Rect(startWidth, 0, img.Bounds().Dx(), img.Bounds().Dy()), &image.Uniform{color.RGBA{51, 51, 51, 51}}, image.ZP, draw.Src)
+
+	col := color.RGBA{255, 255, 255, 255}
+
+	height := 13
+	for _, keyPress := range lastKeyPresses {
+		point := fixed.Point26_6{fixed.I(startWidth + 10), fixed.I(height)}
+
+		d := &font.Drawer{
+			Dst:  img,
+			Src:  image.NewUniform(col),
+			Face: basicfont.Face7x13,
+			Dot:  point,
+		}
+		d.DrawString(keyPress.Name + ": " + keyPress.KeyPressed)
+
+		height += 20
+	}
+
+}
+
 func encodeAddGif(gifEncoder *gif.GIF) {
-	img := getScreenImageResized()
-	myPalette := quantizer.Quantize(make([]color.Color, 0, 256), img)
-	palettedImg := image.NewPaletted(img.Bounds(), myPalette)
-	draw.Draw(palettedImg, img.Bounds(), img, image.Point{}, draw.Src)
+	img := getScreenshotResized()
+
+	newImgBounds := image.Rect(0, 0, img.Bounds().Dx()+150, img.Bounds().Dy())
+	imgRGBA := image.NewRGBA(newImgBounds)
+	draw.Draw(imgRGBA, img.Bounds(), img, image.Point{}, draw.Src)
+	editImage(imgRGBA, img.Bounds().Dx())
+
+	myPalette := quantizer.Quantize(make([]color.Color, 0, 256), imgRGBA)
+	palettedImg := image.NewPaletted(newImgBounds, myPalette)
+	// Fill background color
+	draw.Draw(palettedImg, newImgBounds, imgRGBA, image.Point{}, draw.Src)
 	gifEncoder.Image = append(gifEncoder.Image, palettedImg)
 	gifEncoder.Delay = append(gifEncoder.Delay, settings.FrameDelayGif)
 	gifWg.Done()
@@ -527,6 +565,20 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	}
 	mutex.Lock()
 	defer mutex.Unlock()
+
+	truncatedName := i.Member.User.Username
+	if len(truncatedName) > 6 {
+		truncatedName = truncatedName[:6]
+		truncatedName += "."
+	}
+	lastKeyPresses = append(lastKeyPresses, KeyPress{
+		Name:       truncatedName,
+		KeyPressed: button.String(),
+	})
+	if len(lastKeyPresses) > 7 {
+		lastKeyPresses = lastKeyPresses[1:]
+	}
+
 	timeSincePress := time.Since(lastPressTime)
 	lastPressTime = time.Now()
 	if timeSincePress > time.Minute*2 {
@@ -562,34 +614,29 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 			Image: &discordgo.MessageEmbedImage{
 				URL: "attachment://screen.gif",
 			},
-			Footer: &discordgo.MessageEmbedFooter{
-				Text: SR("footer", i),
-			},
 		},
 	}
-	buttons := getButtons()
-	if deferredResponse {
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-			Embeds: &embeds,
-			Files: []*discordgo.File{
-				{Name: "screen.gif", Reader: &buf},
-			},
-			Components: &buttons,
-		})
-	} else {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Embeds: embeds,
-				Files: []*discordgo.File{
-					{Name: "screen.gif", Reader: &buf},
-				},
-				Components: buttons,
-			},
-		})
+
+	messageEdit := discordgo.NewMessageEdit(i.ChannelID, i.Message.ID)
+	messageEdit.Embeds = embeds
+	messageEdit.Files = []*discordgo.File{
+		{
+			Name:   "screen.gif",
+			Reader: &buf,
+		},
 	}
+	attachments := make([]*discordgo.MessageAttachment, 0)
+	messageEdit.Attachments = &attachments
+	s.ChannelMessageEditComplex(messageEdit)
+
+	// TODO: is this needed?
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredMessageUpdate,
+	})
+
+	// TODO: now with gif I think we remove this
 	screenBytes := buf.Bytes()
-	ioutil.WriteFile(executablePath+"/latest_save.png", screenBytes, 0644)
+	os.WriteFile(executablePath+"/latest_save.png", screenBytes, 0644)
 	// Add score to leaderboard
 	if i.Member.User != nil {
 		found := false
@@ -860,7 +907,6 @@ func init() {
 }
 
 func RunBot(BotToken string) {
-	framesSteppedPressedInit = settings.FramesSteppedPressed
 	var err error
 	session, err = discordgo.New("Bot " + BotToken)
 	if err != nil {

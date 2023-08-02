@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
-	"io/ioutil"
+	"os"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -16,7 +16,7 @@ func commandSave(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
 	checkOk(get("save?path=" + executablePath + "/save.png"))
-	b, _ := ioutil.ReadFile(executablePath + "/save.png")
+	b, _ := os.ReadFile(executablePath + "/save.png")
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	gz.Write(b)

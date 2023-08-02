@@ -12,7 +12,7 @@ func commandSummary(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// summaryMutex.Lock()
 	// defer summaryMutex.Unlock()
 	// get("gif")
-	// data, err := ioutil.ReadFile("out.gif")
+	// data, err := os.ReadFile("out.gif")
 	// if err != nil {
 	// 	fmt.Println("Error while loading gif")
 	// 	return
