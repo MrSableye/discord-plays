@@ -717,6 +717,7 @@ func init() {
 		log.Fatalln("strings.json not found")
 	}
 	json.Unmarshal([]byte(stringsJson), &S)
+	var minValue float64 = 2.0
 	commands = []*discordgo.ApplicationCommand{
 		{
 			Name:        "screen",
@@ -807,6 +808,7 @@ func init() {
 					Name:        "frames-pressed",
 					Description: S["framesOptionFramesPressed"],
 					Required:    true,
+					MinValue:    &minValue,
 					MaxValue:    1000,
 				},
 			},
