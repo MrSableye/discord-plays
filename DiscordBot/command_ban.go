@@ -8,7 +8,7 @@ import (
 )
 
 func commandPokeBan(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if !mustAdmin(s, i) {
+	if !isAdmin(s, i) {
 		return
 	}
 	optionMap := getOptions(i)

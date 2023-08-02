@@ -5,7 +5,7 @@ import (
 )
 
 func commandPokeAdmin(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if !mustAdmin(s, i) {
+	if !isAdmin(s, i) {
 		return
 	}
 	optionMap := getOptions(i)

@@ -5,13 +5,20 @@ import (
 )
 
 func commandScreen(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if !isAdmin(s, i) {
+		return
+	}
 	if checkBanned(s, i) {
 		return
 	}
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Flags: discordgo.MessageFlagsHasThread,
+		},
 	})
+
 	// TODO: bring back?
 	// reader := getScreen("png")
 	// img, err := png.Decode(reader)
@@ -31,11 +38,20 @@ func commandScreen(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// 	},
 	// }
 	buttons := getButtons()
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+	m, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		// Embeds: &embeds,
 		// Files: []*discordgo.File{
 		// 	{Name: "screen.png", Reader: writer},
 		// },
 		Components: &buttons,
 	})
+	check(err)
+
+	_, err = s.MessageThreadStartComplex(i.ChannelID, m.ID, &discordgo.ThreadStart{
+		Name:                "Chat",
+		AutoArchiveDuration: 60 * 24 * 7,
+		Invitable:           false,
+		RateLimitPerUser:    10,
+	})
+	check(err)
 }

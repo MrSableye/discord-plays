@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PerformLine/go-stockutil/colorutil"
 	"github.com/bwmarrin/discordgo"
 	"github.com/ericpauley/go-quantize/quantize"
 	"github.com/nfnt/resize"
@@ -82,8 +83,10 @@ type BannedPlayer struct {
 type KeyPress struct {
 	Name       string
 	KeyPressed string
+	Color      color.RGBA
 }
 
+var currentHistory *image.RGBA
 var lastKeyPresses []KeyPress
 var bannedPlayers []BannedPlayer
 var admins []string
@@ -158,7 +161,7 @@ var (
 	}
 )
 
-func mustAdmin(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
+func isAdmin(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
 	contains := false
 	for j := 0; j < len(admins); j++ {
 		if admins[j] == i.Member.User.ID {
@@ -504,43 +507,60 @@ var quantizer quantize.MedianCutQuantizer = quantize.MedianCutQuantizer{
 	Aggregation: quantize.Mode,
 }
 
-func editImage(img *image.RGBA, startWidth int) {
-	// Fill background
-	draw.Draw(img, image.Rect(startWidth, 0, img.Bounds().Dx(), img.Bounds().Dy()), &image.Uniform{color.RGBA{51, 51, 51, 51}}, image.ZP, draw.Src)
-
-	col := color.RGBA{255, 255, 255, 255}
+func getHistory(frameHeight int) *image.RGBA {
+	var img *image.RGBA = image.NewRGBA(image.Rect(0, 0, 130, frameHeight))
+	// Fill background TODO: make configurable
+	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{51, 51, 51, 51}}, image.Point{}, draw.Src)
 
 	height := 13
 	for _, keyPress := range lastKeyPresses {
-		point := fixed.Point26_6{fixed.I(startWidth + 10), fixed.I(height)}
-
+		point := fixed.Point26_6{fixed.I(10), fixed.I(height)}
+		col := keyPress.Color
 		d := &font.Drawer{
 			Dst:  img,
 			Src:  image.NewUniform(col),
 			Face: basicfont.Face7x13,
 			Dot:  point,
 		}
-		d.DrawString(keyPress.Name + ": " + keyPress.KeyPressed)
+		d.DrawString(keyPress.Name)
+		point = fixed.Point26_6{fixed.I(10 + (len(keyPress.Name) * 7)), fixed.I(height)}
+		col = color.RGBA{255, 255, 255, 255}
+		d = &font.Drawer{
+			Dst:  img,
+			Src:  image.NewUniform(col),
+			Face: basicfont.Face7x13,
+			Dot:  point,
+		}
+		d.DrawString(": " + keyPress.KeyPressed)
 
 		height += 20
+		if height > frameHeight {
+			lastKeyPresses = lastKeyPresses[1:]
+			break
+		}
 	}
 
+	return img
 }
+
+var gifWidth int = 0
+var gifHeight int = 0
 
 func encodeAddGif(gifEncoder *gif.GIF) {
 	img := getScreenshotResized()
-
-	newImgBounds := image.Rect(0, 0, img.Bounds().Dx()+150, img.Bounds().Dy())
-	imgRGBA := image.NewRGBA(newImgBounds)
-	draw.Draw(imgRGBA, img.Bounds(), img, image.Point{}, draw.Src)
-	editImage(imgRGBA, img.Bounds().Dx())
-
-	myPalette := quantizer.Quantize(make([]color.Color, 0, 256), imgRGBA)
-	palettedImg := image.NewPaletted(newImgBounds, myPalette)
-	// Fill background color
-	draw.Draw(palettedImg, newImgBounds, imgRGBA, image.Point{}, draw.Src)
+	if currentHistory == nil {
+		currentHistory = getHistory(img.Bounds().Dy())
+	}
+	var imgFrame *image.RGBA = image.NewRGBA(image.Rect(0, 0, img.Bounds().Dx()+currentHistory.Bounds().Dx(), img.Bounds().Dy()))
+	draw.Draw(imgFrame, img.Bounds(), img, image.Point{}, draw.Src)
+	draw.Draw(imgFrame, currentHistory.Bounds().Add(image.Point{img.Bounds().Dx(), 0}), currentHistory, image.Point{}, draw.Src)
+	myPalette := quantizer.Quantize(make([]color.Color, 0, 256), imgFrame)
+	palettedImg := image.NewPaletted(imgFrame.Bounds(), myPalette)
+	draw.Draw(palettedImg, imgFrame.Bounds(), imgFrame, image.Point{}, draw.Src)
 	gifEncoder.Image = append(gifEncoder.Image, palettedImg)
 	gifEncoder.Delay = append(gifEncoder.Delay, settings.FrameDelayGif)
+	gifWidth = imgFrame.Bounds().Dx()
+	gifHeight = imgFrame.Bounds().Dy()
 	gifWg.Done()
 }
 
@@ -566,18 +586,24 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	mutex.Lock()
 	defer mutex.Unlock()
 
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseUpdateMessage,
+	})
+
 	truncatedName := i.Member.User.Username
-	if len(truncatedName) > 6 {
-		truncatedName = truncatedName[:6]
+	if len(truncatedName) > 7 {
+		truncatedName = truncatedName[:7]
 		truncatedName += "."
 	}
+	colorForName, _ := strconv.Atoi(i.Member.User.ID)
+	r, g, b := colorutil.HslToRgb(float64(colorForName%360), 0.5, 0.5)
 	lastKeyPresses = append(lastKeyPresses, KeyPress{
 		Name:       truncatedName,
 		KeyPressed: button.String(),
+		Color:      color.RGBA{uint8(r), uint8(g), uint8(b), 255},
 	})
-	if len(lastKeyPresses) > 7 {
-		lastKeyPresses = lastKeyPresses[1:]
-	}
+
+	currentHistory = nil
 
 	timeSincePress := time.Since(lastPressTime)
 	lastPressTime = time.Now()
@@ -609,10 +635,13 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	if profiling {
 		log.Println("Time elapsed:", time.Since(timeStart))
 	}
+
 	embeds := []*discordgo.MessageEmbed{
 		{
 			Image: &discordgo.MessageEmbedImage{
-				URL: "attachment://screen.gif",
+				URL:    "attachment://screen.gif",
+				Width:  gifWidth,
+				Height: gifHeight,
 			},
 		},
 	}
@@ -628,11 +657,6 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	attachments := make([]*discordgo.MessageAttachment, 0)
 	messageEdit.Attachments = &attachments
 	s.ChannelMessageEditComplex(messageEdit)
-
-	// TODO: is this needed?
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseDeferredMessageUpdate,
-	})
 
 	// TODO: now with gif I think we remove this
 	screenBytes := buf.Bytes()

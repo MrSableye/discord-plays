@@ -3,7 +3,7 @@ package main
 import "github.com/bwmarrin/discordgo"
 
 func commandPokeUnban(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if !mustAdmin(s, i) {
+	if !isAdmin(s, i) {
 		return
 	}
 	optionMap := getOptions(i)
