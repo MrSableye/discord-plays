@@ -1,6 +1,6 @@
 # discord-plays
 
-A discord bot hosting a GB/GBC/GBA/NDS (and soon a 3DS) emulator!
+A discord bot hosting GB, GBC, GBA, NDS and 3DS emulators!
 
 <p align="center">
   <img src="./movie.gif"/>
@@ -50,9 +50,12 @@ At the moment, Pokemon-Bot has been successfully connected to the following emul
 
 - The GameBoy core of [Hydra](https://github.com/OFFTKP/hydra): The emulator that inspired the project.
 - [SkyEmu](https://github.com/skylersaleh/SkyEmu): Provides GB(C), GBA and NDS emulation
-  - Try discord-plays out here:<br><a href="https://discord.gg/tnUEtmJgA5" rel="Join Discord Server">![Discord Banner 2](https://discordapp.com/api/guilds/1131322341645893783/widget.png?style=banner2)</a>
 - [Panda3DS](https://github.com/wheremyfoodat/Panda3DS): Provides 3DS emulation
-  - Try discord-plays out here:<br>[![Discord Banner 2](https://discord.com/api/guilds/1118695732958994532/widget.png?style=banner2)](https://discord.gg/ZYbugsEmsw)
+
+## Try it out!
+Here's some Discord servers where you can find this bot to try it out! The game currently being played on these servers may vary, so hop on and check out what's currently playing!
+- [SkyEmu server](https://discord.com/invite/tnUEtmJgA5): Play GB/GBC/GBA/DS games, running on SkyEmu
+- [Panda3DS server](https://discord.com/invite/ZYbugsEmsw): Play 3DS games, running on Panda3DS
 
 ## Ack
 Thanks to Sky for [SkyEmu](https://github.com/skylersaleh/SkyEmu)    
