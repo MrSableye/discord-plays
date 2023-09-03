@@ -50,7 +50,9 @@ At the moment, Pokemon-Bot has been successfully connected to the following emul
 
 - The GameBoy core of [Hydra](https://github.com/OFFTKP/hydra): The emulator that inspired the project.
 - [SkyEmu](https://github.com/skylersaleh/SkyEmu): Provides GB(C), GBA and NDS emulation
+  - Try discord-plays out here:<br><a href="https://discord.gg/tnUEtmJgA5" rel="Join Discord Server">![Discord Banner 2](https://discordapp.com/api/guilds/1131322341645893783/widget.png?style=banner2)</a>
 - [Panda3DS](https://github.com/wheremyfoodat/Panda3DS): Provides 3DS emulation
+  - Try discord-plays out here:<br>[![Discord Banner 2](https://discord.com/api/guilds/1118695732958994532/widget.png?style=banner2)](https://discord.gg/ZYbugsEmsw)
 
 ## Ack
 Thanks to Sky for [SkyEmu](https://github.com/skylersaleh/SkyEmu)    
