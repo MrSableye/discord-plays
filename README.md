@@ -1,9 +1,9 @@
-# pokemon-bot 
+# discord-plays
 
 A discord bot hosting a GB/GBC/GBA/NDS (and soon a 3DS) emulator!
 
-<p float="center">
-  <img src="/movie.gif"/>
+<p align="center">
+  <img src="./movie.gif"/>
 </p>
 
 ## Commands:
