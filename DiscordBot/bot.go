@@ -658,9 +658,6 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	messageEdit.Attachments = &attachments
 	s.ChannelMessageEditComplex(messageEdit)
 
-	// TODO: now with gif I think we remove this
-	screenBytes := buf.Bytes()
-	os.WriteFile(executablePath+"/latest_save.png", screenBytes, 0644)
 	// Add score to leaderboard
 	if i.Member.User != nil {
 		found := false
