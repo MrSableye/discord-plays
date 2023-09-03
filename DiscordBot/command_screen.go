@@ -51,7 +51,7 @@ func commandScreen(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		Name:                "Chat",
 		AutoArchiveDuration: 60 * 24 * 7,
 		Invitable:           false,
-		RateLimitPerUser:    10,
+		RateLimitPerUser:    0,
 	})
 	check(err)
 }
