@@ -433,7 +433,12 @@ func SR(str string, i *discordgo.InteractionCreate) string {
 	ret = strings.ReplaceAll(ret, "%DATE%", time.Now().Format("2006-01-02"))
 	if options != nil {
 		for i := 0; i < len(options); i++ {
-			ret = strings.ReplaceAll(ret, "%OPTION"+strconv.Itoa(i)+"%", options[i].StringValue())
+			o := options[i]
+			if o.Type == discordgo.ApplicationCommandOptionString {
+				ret = strings.ReplaceAll(ret, "%OPTION"+strconv.Itoa(i)+"%", o.StringValue())
+			} else if o.Type == discordgo.ApplicationCommandOptionInteger {
+				ret = strings.ReplaceAll(ret, "%OPTION"+strconv.Itoa(i)+"%", strconv.Itoa(int(o.IntValue())))
+			}
 		}
 	}
 	return ret
