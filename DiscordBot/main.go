@@ -30,6 +30,7 @@ type BotSettings struct {
 	Debug                  int
 	FrameDelayGif          int
 	DaysConsideredTooYoung int
+	DisableGif             bool
 }
 
 func DefaultBotSettings() BotSettings {
@@ -114,7 +115,7 @@ func configure() {
 		}
 		fmt.Println("Invalid input. Please enter a number between 1 and 3.")
 	}
-	settings = BotSettings{token, gamePath, serverPath, timeout, strconv.Itoa(port), startCommand, 5, 60, 30, 5, 0, "bmp", 0, 10, 0}
+	settings = BotSettings{token, gamePath, serverPath, timeout, strconv.Itoa(port), startCommand, 5, 60, 30, 5, 0, "bmp", 0, 10, 0, false}
 	settingsJson, err := json.Marshal(settings)
 	check(err)
 	fmt.Println("Writing config file...")

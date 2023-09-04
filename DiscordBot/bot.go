@@ -594,8 +594,6 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	if checkBanned(s, i) {
 		return
 	}
-	mutex.Lock()
-	defer mutex.Unlock()
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseUpdateMessage,
@@ -614,33 +612,44 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 		Color:      color.RGBA{uint8(r), uint8(g), uint8(b), 255},
 	})
 
-	currentHistory = nil
-
 	timeSincePress := time.Since(lastPressTime)
 	lastPressTime = time.Now()
 	if timeSincePress > time.Minute*2 {
 		// Reset frame pressed count
 		settings.FramesSteppedPressed = initialFramesSteppedPressed
 	}
-	checkOk(get("input?" + button.String() + "=1"))
 	gifEncoder := gif.GIF{}
 	timeStart = time.Now()
 	deferredResponse = false
 	var released = false
+	frameCurrent := 0
+	frameCount := (settings.FramesSteppedPressed+settings.FramesSteppedReleased)/settings.FramesToSample + 1
+	if settings.DisableGif {
+		frameCount = 1
+	}
+	mutex.Lock()
 	images = make([]GifImage, 0)
-	frameCount := 0
-	for j := 0; j < settings.FramesSteppedPressed+settings.FramesSteppedReleased; j += settings.FramesToSample {
-		if !deferredResponse && checkDeferResponse(s, i) {
-			deferredResponse = true
-		}
-		if !released && j >= settings.FramesSteppedPressed {
-			checkOk(get("input?" + button.String() + "=0"))
-			released = true
-		}
+	currentHistory = nil
+	checkOk(get("input?" + button.String() + "=1"))
+	for j := 0; j < frameCount; j++ {
 		gifWg.Add(1)
-		go encodeAddGif(&gifEncoder, frameCount)
-		frameCount++
-		checkOk(get("step?frames=" + strconv.Itoa(settings.FramesToSample)))
+		if !settings.DisableGif {
+			if !deferredResponse && checkDeferResponse(s, i) {
+				deferredResponse = true
+			}
+			if !released && j*settings.FramesToSample >= settings.FramesSteppedPressed {
+				checkOk(get("input?" + button.String() + "=0"))
+				released = true
+			}
+			go encodeAddGif(&gifEncoder, frameCurrent)
+			frameCurrent++
+			checkOk(get("step?frames=" + strconv.Itoa(settings.FramesToSample)))
+		} else {
+			checkOk(get("step?frames=" + strconv.Itoa(settings.FramesSteppedPressed)))
+			checkOk(get("input?" + button.String() + "=0"))
+			checkOk(get("step?frames=" + strconv.Itoa(settings.FramesSteppedReleased)))
+			go encodeAddGif(&gifEncoder, 0)
+		}
 	}
 	gifWg.Wait()
 	gifEncoder.Image = make([]*image.Paletted, len(images))
@@ -651,9 +660,7 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	gifEncoder.LoopCount = -1
 	var buf bytes.Buffer
 	gif.EncodeAll(&buf, &gifEncoder)
-	if profiling {
-		log.Println("Time elapsed:", time.Since(timeStart))
-	}
+	mutex.Unlock()
 
 	embeds := []*discordgo.MessageEmbed{
 		{
@@ -676,6 +683,9 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	attachments := make([]*discordgo.MessageAttachment, 0)
 	messageEdit.Attachments = &attachments
 	s.ChannelMessageEditComplex(messageEdit)
+	if profiling {
+		log.Println("Time elapsed:", time.Since(timeStart))
+	}
 
 	// Add score to leaderboard
 	if i.Member.User != nil {
