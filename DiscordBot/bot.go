@@ -551,7 +551,14 @@ func getHistory(frameHeight int) *image.RGBA {
 var gifWidth int = 0
 var gifHeight int = 0
 
-func encodeAddGif(gifEncoder *gif.GIF) {
+type GifImage struct {
+	Img   *image.Paletted
+	Index int
+}
+
+var images []GifImage
+
+func encodeAddGif(gifEncoder *gif.GIF, index int) {
 	img := getScreenshotResized()
 	if currentHistory == nil {
 		currentHistory = getHistory(img.Bounds().Dy())
@@ -562,10 +569,9 @@ func encodeAddGif(gifEncoder *gif.GIF) {
 	myPalette := quantizer.Quantize(make([]color.Color, 0, 256), imgFrame)
 	palettedImg := image.NewPaletted(imgFrame.Bounds(), myPalette)
 	draw.Draw(palettedImg, imgFrame.Bounds(), imgFrame, image.Point{}, draw.Src)
-	gifEncoder.Image = append(gifEncoder.Image, palettedImg)
-	gifEncoder.Delay = append(gifEncoder.Delay, settings.FrameDelayGif)
 	gifWidth = imgFrame.Bounds().Dx()
 	gifHeight = imgFrame.Bounds().Dy()
+	images = append(images, GifImage{palettedImg, index})
 	gifWg.Done()
 }
 
@@ -621,6 +627,8 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	timeStart = time.Now()
 	deferredResponse = false
 	var released = false
+	images = make([]GifImage, 0)
+	frameCount := 0
 	for j := 0; j < settings.FramesSteppedPressed+settings.FramesSteppedReleased; j += settings.FramesToSample {
 		if !deferredResponse && checkDeferResponse(s, i) {
 			deferredResponse = true
@@ -630,9 +638,15 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 			released = true
 		}
 		gifWg.Add(1)
-		go encodeAddGif(&gifEncoder)
+		go encodeAddGif(&gifEncoder, frameCount)
+		frameCount++
 		checkOk(get("step?frames=" + strconv.Itoa(settings.FramesToSample)))
-		gifWg.Wait()
+	}
+	gifWg.Wait()
+	gifEncoder.Image = make([]*image.Paletted, len(images))
+	for _, img := range images {
+		gifEncoder.Image[img.Index] = img.Img
+		gifEncoder.Delay = append(gifEncoder.Delay, settings.FrameDelayGif)
 	}
 	gifEncoder.LoopCount = -1
 	var buf bytes.Buffer
