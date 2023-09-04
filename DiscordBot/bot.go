@@ -660,7 +660,6 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	gifEncoder.LoopCount = -1
 	var buf bytes.Buffer
 	gif.EncodeAll(&buf, &gifEncoder)
-	mutex.Unlock()
 
 	embeds := []*discordgo.MessageEmbed{
 		{
@@ -686,6 +685,7 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	if profiling {
 		log.Println("Time elapsed:", time.Since(timeStart))
 	}
+	mutex.Unlock()
 
 	// Add score to leaderboard
 	if i.Member.User != nil {
