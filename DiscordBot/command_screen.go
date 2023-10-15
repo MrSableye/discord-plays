@@ -47,11 +47,13 @@ func commandScreen(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	})
 	check(err)
 
-	_, err = s.MessageThreadStartComplex(i.ChannelID, m.ID, &discordgo.ThreadStart{
+	thread, err := s.MessageThreadStartComplex(i.ChannelID, m.ID, &discordgo.ThreadStart{
 		Name:                "Chat",
 		AutoArchiveDuration: 60 * 24 * 7,
 		Invitable:           false,
 		RateLimitPerUser:    0,
 	})
 	check(err)
+
+	s.ChannelMessageSend(thread.ID, "boop!")
 }
