@@ -2,7 +2,7 @@ package main
 
 import "github.com/bwmarrin/discordgo"
 
-func commandPokeUnban(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func commandUnblock(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if !isAdmin(s, i) {
 		return
 	}

@@ -3,7 +3,7 @@ package main
 import "github.com/bwmarrin/discordgo"
 
 func commandLeaderboard(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if checkBanned(s, i) {
+	if isBanned(s, i) {
 		return
 	}
 	ldr := printLeaderboard()

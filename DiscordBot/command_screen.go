@@ -8,7 +8,7 @@ func commandScreen(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if !isAdmin(s, i) {
 		return
 	}
-	if checkBanned(s, i) {
+	if isBanned(s, i) {
 		return
 	}
 

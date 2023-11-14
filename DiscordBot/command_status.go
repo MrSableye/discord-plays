@@ -8,7 +8,7 @@ import (
 )
 
 func commandStatus(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if checkBanned(s, i) {
+	if isBanned(s, i) {
 		return
 	}
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{

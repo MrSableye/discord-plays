@@ -6,7 +6,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func commandPokeJail(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func commandJail(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if !isAdmin(s, i) {
 		return
 	}

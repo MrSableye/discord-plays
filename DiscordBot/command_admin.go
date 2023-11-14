@@ -4,7 +4,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func commandPokeAdmin(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func commandAdmin(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if !isAdmin(s, i) {
 		return
 	}

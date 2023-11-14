@@ -7,7 +7,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func commandPokeBan(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func commandBlock(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if !isAdmin(s, i) {
 		return
 	}

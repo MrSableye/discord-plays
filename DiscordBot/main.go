@@ -16,8 +16,6 @@ var configFile string
 
 type BotSettings struct {
 	Token                  string
-	GamePath               string
-	ServerPath             string
 	TimeoutSeconds         int
 	Port                   string
 	StartCommand           string
@@ -25,7 +23,6 @@ type BotSettings struct {
 	FramesSteppedReleased  int
 	FramesSteppedToggle    int
 	FramesToSample         int
-	WidthOfImage           uint
 	ImageFormat            string
 	Debug                  int
 	FrameDelayGif          int
@@ -39,7 +36,6 @@ func DefaultBotSettings() BotSettings {
 	newSettings.FramesSteppedReleased = 50
 	newSettings.FramesSteppedToggle = 20
 	newSettings.FramesToSample = 5
-	newSettings.WidthOfImage = 0
 	newSettings.ImageFormat = "bmp"
 	newSettings.Debug = 0
 	newSettings.FrameDelayGif = 10
@@ -72,13 +68,13 @@ func configure() {
 	var token string
 	fmt.Scan(&token)
 	fmt.Println("Enter absolute path to backend executable (example: C:/Users/JohnDoe/Desktop/SkyEmu.exe):")
-	serverPath := GetAbsolutePath()
+	serverPath := getAbsolutePath()
 	fmt.Println("Enter absolute path to game ROM (example: C:/Users/JohnDoe/Desktop/pokemon_gold.gba):")
-	gamePath := GetAbsolutePath()
+	gamePath := getAbsolutePath()
 	timeout := 5
 	for {
 		fmt.Println("Enter timeout in seconds for server to start (default: 5):")
-		timeout = GetNumber(timeout)
+		timeout = getNumber(timeout)
 		if timeout > 0 {
 			break
 		}
@@ -87,7 +83,7 @@ func configure() {
 	port := 1234
 	for {
 		fmt.Println("Enter port number for webserver (default: 1234):")
-		port = GetNumber(port)
+		port = getNumber(port)
 		if port > 0 && port < 65536 {
 			break
 		}
@@ -99,7 +95,7 @@ func configure() {
 	var backend int
 	var startCommand string
 	for {
-		backend = GetNumber(1)
+		backend = getNumber(1)
 		if backend > 0 && backend < 4 {
 			switch backend {
 			case 1:

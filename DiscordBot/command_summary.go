@@ -5,7 +5,7 @@ import (
 )
 
 func commandSummary(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// checkBanned(s, i)
+	// isBanned(s, i)
 	// s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 	// 	Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	// })

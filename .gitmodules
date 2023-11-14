@@ -1,0 +1,3 @@
+[submodule "DiscordBot/protocol"]
+	path = DiscordBot/protocol
+	url = https://github.com/hydra-emu/protocol

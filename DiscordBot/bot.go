@@ -2,65 +2,21 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
-	"image"
 	"image/color"
-	"image/draw"
-	"image/gif"
-	"image/jpeg"
-	"image/png"
-	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/PerformLine/go-stockutil/colorutil"
 	"github.com/bwmarrin/discordgo"
-	"github.com/ericpauley/go-quantize/quantize"
-	"github.com/nfnt/resize"
-	"golang.org/x/image/bmp"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/basicfont"
-	"golang.org/x/image/math/fixed"
 )
-
-type Pokemon struct {
-	Nickname string `json:"Name"`
-	Name     string `json:"Type"`
-	Exp      int
-	Hp       int
-	MaxHp    int
-	Level    int
-	Status   int
-}
-
-type Pokeball struct {
-	Name  string
-	Count int
-}
-
-type Pokeballs struct {
-	Count int
-	Balls []Pokeball
-}
-
-type GameData struct {
-	Name  string
-	Rival string
-	Money int
-	Johto int
-	Kanto int
-}
 
 type LeaderboardEntry struct {
 	Name       string
@@ -86,20 +42,13 @@ type KeyPress struct {
 	Color      color.RGBA
 }
 
-var currentHistory *image.RGBA
+var session *discordgo.Session
 var lastKeyPresses []KeyPress
 var bannedPlayers []BannedPlayer
 var admins []string
 var S map[string]string
-var session *discordgo.Session
 var leaderboard Leaderboard
 var keyPressCount int = 0
-var mutex sync.Mutex
-var toggleKey int = 0
-var executablePath string
-var transport *http.Transport
-var profiling bool = false
-var lastPressTime time.Time
 
 type ButtonType int
 
@@ -134,17 +83,17 @@ var (
 		"leaderboard": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			commandLeaderboard(s, i)
 		},
-		"poke-jail": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			commandPokeJail(s, i)
+		"jail": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			commandJail(s, i)
 		},
-		"poke-ban": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			commandPokeBan(s, i)
+		"block": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			commandBlock(s, i)
 		},
-		"poke-unban": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			commandPokeUnban(s, i)
+		"unblock": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			commandUnblock(s, i)
 		},
-		"poke-admin": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			commandPokeAdmin(s, i)
+		"dp-admin": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			commandAdmin(s, i)
 		},
 		"status": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			commandStatus(s, i)
@@ -155,46 +104,13 @@ var (
 		"load": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			commandLoad(s, i)
 		},
-		"frames": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			commandFrames(s, i)
-		},
 	}
 )
-
-func isAdmin(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
-	contains := false
-	for j := 0; j < len(admins); j++ {
-		if admins[j] == i.Member.User.ID {
-			contains = true
-			break
-		}
-	}
-	if !contains {
-		fmt.Printf("User %s tried to use an admin command\n", i.Member.User.ID)
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: SR("notAdmin", i),
-			},
-		})
-	}
-	return contains
-}
 
 var (
 	componentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"press_left": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			// TODO: add way to hold dpad
-			// if toggleKey == 1 {
-			// 	checkOk(get("input?B=1"))
-			// 	checkOk(get("step?frames=2"))
-			// 	settings.FramesSteppedPressed = framesSteppedPressedInit + settings.FramesSteppedToggle*toggleKey
-			// }
 			press(s, i, ButtonLeft)
-			// if toggleKey == 1 {
-			// 	settings.FramesSteppedPressed = framesSteppedPressedInit
-			// 	checkOk(get("input?B=0"))
-			// }
 		},
 		"press_right": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			press(s, i, ButtonRight)
@@ -265,333 +181,8 @@ func (b *ButtonType) String() string {
 	return ""
 }
 
-func get(str string) *http.Response {
-	url := "http://localhost:" + settings.Port + "/" + str
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		fmt.Println(err)
-	}
-	if settings.Debug == 1 {
-		fmt.Println(url)
-	}
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return resp
-}
-
-func checkOk(resp *http.Response) bool {
-	if resp.StatusCode != 200 {
-		fmt.Println(resp.StatusCode)
-		return false
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	bodystr := string(body)
-	if bodystr[0] != 'o' && bodystr[1] != 'k' {
-		fmt.Println("Not Ok:" + bodystr)
-		return false
-	}
-	return true
-}
-
-func getScreenshot(format string) *bytes.Reader {
-	resp := get("screen?format=" + format)
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return bytes.NewReader(body)
-}
-
-func getScreenshotResized() image.Image {
-	bytes := getScreenshot(settings.ImageFormat)
-	var img image.Image
-	var err error
-	if settings.ImageFormat == "png" {
-		img, err = png.Decode(bytes)
-	} else if settings.ImageFormat == "jpg" {
-		img, err = jpeg.Decode(bytes)
-	} else if settings.ImageFormat == "bmp" {
-		img, err = bmp.Decode(bytes)
-	} else {
-		panic("Unknown image format: " + settings.ImageFormat)
-	}
-	check(err)
-	if settings.WidthOfImage != 0 {
-		img = resize.Resize(settings.WidthOfImage, 0, img, resize.Lanczos3)
-	}
-	return img
-}
-
-func ordinal(i int) string {
-	j := i % 10
-	str := strconv.Itoa(i)
-	if j == 1 {
-		return str + "st"
-	}
-	if j == 2 {
-		return str + "nd"
-	}
-	if j == 3 {
-		return str + "rd"
-	}
-	return str + "th"
-}
-
-func printLeaderboard() string {
-	var sb strings.Builder
-	sort.Slice(leaderboard.Entries, func(i, j int) bool {
-		return leaderboard.Entries[i].Keystrokes > leaderboard.Entries[j].Keystrokes
-	})
-	max, err := strconv.Atoi(S["leaderboardEntries"])
-	if err != nil {
-		max = 10
-	}
-	if len(leaderboard.Entries) < max {
-		max = len(leaderboard.Entries)
-	}
-	for i := 0; i < max; i++ {
-		sb.WriteString("" + ordinal(i+1) + ": " +
-			leaderboard.Entries[i].Name + " with " +
-			strconv.Itoa(leaderboard.Entries[i].Keystrokes) + " keys pressed!\n")
-	}
-	return sb.String()
-}
-
-func saveLeaderboard() {
-	file, err := json.Marshal(leaderboard)
-	check(err)
-	_ = ioutil.WriteFile("leaderboard.json", file, 0644)
-}
-
-func checkBanned(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
-	for j := 0; j < len(bannedPlayers); j++ {
-		if bannedPlayers[j].Id == i.Member.User.ID {
-			if time.Now().Before(bannedPlayers[j].UnbanDate) {
-				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Embeds: []*discordgo.MessageEmbed{
-							{
-								Title:       "Banned",
-								Description: SR("bannedMessage", i),
-								Footer:      &discordgo.MessageEmbedFooter{Text: "You will be free to use this bot after " + bannedPlayers[j].UnbanDate.Format("2006-01-02")},
-							},
-						},
-					},
-				})
-				return true
-			} else {
-				removeBanned(i.Member.User.ID)
-			}
-		}
-	}
-	days := settings.DaysConsideredTooYoung
-	if i.Member.JoinedAt.After(time.Now().AddDate(0, 0, -days)) {
-		unbanDate := time.Now().AddDate(0, 0, days)
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Embeds: []*discordgo.MessageEmbed{
-					{
-						Title:       "Banned",
-						Description: SR("bannedMessageTooNew", i),
-						Footer:      &discordgo.MessageEmbedFooter{Text: "You will be free to use this bot after " + unbanDate.Format("2006-01-02")},
-					},
-				},
-			},
-		})
-		var bannedPlayer BannedPlayer = BannedPlayer{
-			Id:        i.Member.User.ID,
-			UnbanDate: unbanDate,
-			Reason:    "Account joined server too recently",
-			BannedBy:  "Bot",
-			BanDate:   time.Now(),
-		}
-		addBanned(bannedPlayer)
-		return true
-	}
-	return false
-}
-
-// Gets string from strings.json and replaces variables
-func SR(str string, i *discordgo.InteractionCreate) string {
-	var options []*discordgo.ApplicationCommandInteractionDataOption = nil
-	if i.Type == discordgo.InteractionApplicationCommand || i.Type == discordgo.InteractionApplicationCommandAutocomplete {
-		options = i.ApplicationCommandData().Options
-	}
-	ret := S[str]
-	ret = strings.ReplaceAll(ret, "%NAME%", i.Member.User.Username)
-	ret = strings.ReplaceAll(ret, "%ID%", i.Member.User.ID)
-	ret = strings.ReplaceAll(ret, "%DATE%", time.Now().Format("2006-01-02"))
-	if options != nil {
-		for i := 0; i < len(options); i++ {
-			o := options[i]
-			if o.Type == discordgo.ApplicationCommandOptionString {
-				ret = strings.ReplaceAll(ret, "%OPTION"+strconv.Itoa(i)+"%", o.StringValue())
-			} else if o.Type == discordgo.ApplicationCommandOptionInteger {
-				ret = strings.ReplaceAll(ret, "%OPTION"+strconv.Itoa(i)+"%", strconv.Itoa(int(o.IntValue())))
-			}
-		}
-	}
-	return ret
-}
-
-func addBanned(bannedPlayer BannedPlayer) bool {
-	found := false
-	for i := 0; i < len(bannedPlayers); i++ {
-		if bannedPlayers[i].Id == bannedPlayer.Id {
-			found = true
-			break
-		}
-	}
-	if found {
-		return false
-	}
-	bannedPlayers = append(bannedPlayers, bannedPlayer)
-	outJson, _ := json.Marshal(bannedPlayers)
-	ioutil.WriteFile("banned.json", outJson, 0644)
-	return true
-}
-
-func getOptions(i *discordgo.InteractionCreate) map[string]string {
-	if !(i.Type == discordgo.InteractionApplicationCommand || i.Type == discordgo.InteractionApplicationCommandAutocomplete) {
-		return nil
-	}
-	options := i.ApplicationCommandData().Options
-	optionMap := make(map[string]string, len(options))
-	for _, opt := range options {
-		optionMap[opt.Name] = opt.StringValue()
-	}
-	return optionMap
-}
-
-func removeBanned(id string) bool {
-	found := false
-	for i := 0; i < len(bannedPlayers); i++ {
-		if bannedPlayers[i].Id == id {
-			bannedPlayers = append(bannedPlayers[:i], bannedPlayers[i+1:]...)
-			found = true
-			break
-		}
-	}
-	if !found {
-		return false
-	}
-	outJson, _ := json.Marshal(bannedPlayers)
-	ioutil.WriteFile("banned.json", outJson, 0644)
-	return true
-}
-
-func hold(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if checkBanned(s, i) {
-		return
-	}
-	if toggleKey == 0 {
-		toggleKey = 1
-	} else {
-		toggleKey = 0
-	}
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: "Toggled running: " + strconv.Itoa(toggleKey),
-		},
-	})
-}
-
-var gifWg sync.WaitGroup
-var quantizer quantize.MedianCutQuantizer = quantize.MedianCutQuantizer{
-	Aggregation: quantize.Mode,
-}
-
-func getHistory(frameHeight int) *image.RGBA {
-	var img *image.RGBA = image.NewRGBA(image.Rect(0, 0, 130, frameHeight))
-	// Fill background TODO: make configurable
-	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{51, 51, 51, 51}}, image.Point{}, draw.Src)
-
-	height := 13
-	for _, keyPress := range lastKeyPresses {
-		point := fixed.Point26_6{fixed.I(10), fixed.I(height)}
-		col := keyPress.Color
-		d := &font.Drawer{
-			Dst:  img,
-			Src:  image.NewUniform(col),
-			Face: basicfont.Face7x13,
-			Dot:  point,
-		}
-		d.DrawString(keyPress.Name)
-		point = fixed.Point26_6{fixed.I(10 + (len(keyPress.Name) * 7)), fixed.I(height)}
-		col = color.RGBA{255, 255, 255, 255}
-		d = &font.Drawer{
-			Dst:  img,
-			Src:  image.NewUniform(col),
-			Face: basicfont.Face7x13,
-			Dot:  point,
-		}
-		d.DrawString(": " + keyPress.KeyPressed)
-
-		height += 20
-		if height > frameHeight {
-			lastKeyPresses = lastKeyPresses[1:]
-			break
-		}
-	}
-
-	return img
-}
-
-var gifWidth int = 0
-var gifHeight int = 0
-
-type GifImage struct {
-	Img   *image.Paletted
-	Index int
-}
-
-var images []GifImage
-
-func encodeAddGif(gifEncoder *gif.GIF, index int) {
-	img := getScreenshotResized()
-	if currentHistory == nil {
-		currentHistory = getHistory(img.Bounds().Dy())
-	}
-	var imgFrame *image.RGBA = image.NewRGBA(image.Rect(0, 0, img.Bounds().Dx()+currentHistory.Bounds().Dx(), img.Bounds().Dy()))
-	draw.Draw(imgFrame, img.Bounds(), img, image.Point{}, draw.Src)
-	draw.Draw(imgFrame, currentHistory.Bounds().Add(image.Point{img.Bounds().Dx(), 0}), currentHistory, image.Point{}, draw.Src)
-	myPalette := quantizer.Quantize(make([]color.Color, 0, 256), imgFrame)
-	palettedImg := image.NewPaletted(imgFrame.Bounds(), myPalette)
-	draw.Draw(palettedImg, imgFrame.Bounds(), imgFrame, image.Point{}, draw.Src)
-	gifWidth = imgFrame.Bounds().Dx()
-	gifHeight = imgFrame.Bounds().Dy()
-	images = append(images, GifImage{palettedImg, index})
-	gifWg.Done()
-}
-
-var timeStart time.Time
-var deferredResponse bool = false
-
-// If response is taking too much time, defer it so the discord response doesn't time out
-func checkDeferResponse(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
-	// TODO: Defer time configurable
-	if time.Since(timeStart) > time.Second*2 {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-		})
-		return true
-	}
-	return false
-}
-
 func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
-	if checkBanned(s, i) {
+	if isBanned(s, i) {
 		return
 	}
 
@@ -612,54 +203,8 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 		Color:      color.RGBA{uint8(r), uint8(g), uint8(b), 255},
 	})
 
-	timeSincePress := time.Since(lastPressTime)
-	lastPressTime = time.Now()
-	if timeSincePress > time.Minute*2 {
-		// Reset frame pressed count
-		settings.FramesSteppedPressed = initialFramesSteppedPressed
-	}
-	gifEncoder := gif.GIF{}
-	timeStart = time.Now()
-	deferredResponse = false
-	var released = false
-	frameCurrent := 0
-	frameCount := (settings.FramesSteppedPressed+settings.FramesSteppedReleased)/settings.FramesToSample + 1
-	if settings.DisableGif {
-		frameCount = 1
-	}
-	mutex.Lock()
-	images = make([]GifImage, 0)
-	currentHistory = nil
-	checkOk(get("input?" + button.String() + "=1"))
-	for j := 0; j < frameCount; j++ {
-		gifWg.Add(1)
-		if !settings.DisableGif {
-			if !deferredResponse && checkDeferResponse(s, i) {
-				deferredResponse = true
-			}
-			if !released && j*settings.FramesToSample >= settings.FramesSteppedPressed {
-				checkOk(get("input?" + button.String() + "=0"))
-				released = true
-			}
-			go encodeAddGif(&gifEncoder, frameCurrent)
-			frameCurrent++
-			checkOk(get("step?frames=" + strconv.Itoa(settings.FramesToSample)))
-		} else {
-			checkOk(get("step?frames=" + strconv.Itoa(settings.FramesSteppedPressed)))
-			checkOk(get("input?" + button.String() + "=0"))
-			checkOk(get("step?frames=" + strconv.Itoa(settings.FramesSteppedReleased)))
-			go encodeAddGif(&gifEncoder, 0)
-		}
-	}
-	gifWg.Wait()
-	gifEncoder.Image = make([]*image.Paletted, len(images))
-	for _, img := range images {
-		gifEncoder.Image[img.Index] = img.Img
-		gifEncoder.Delay = append(gifEncoder.Delay, settings.FrameDelayGif)
-	}
-	gifEncoder.LoopCount = -1
+	// Here we send
 	var buf bytes.Buffer
-	gif.EncodeAll(&buf, &gifEncoder)
 
 	embeds := []*discordgo.MessageEmbed{
 		{
@@ -685,7 +230,6 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	if profiling {
 		log.Println("Time elapsed:", time.Since(timeStart))
 	}
-	mutex.Unlock()
 
 	// Add score to leaderboard
 	if i.Member.User != nil {
@@ -833,12 +377,12 @@ func init() {
 			Description: S["leaderboard"],
 		},
 		{
-			Name:        "poke-jail",
-			Description: S["poke-jail"],
+			Name:        "jail",
+			Description: S["jail"],
 		},
 		{
-			Name:        "poke-ban",
-			Description: S["poke-ban"],
+			Name:        "block",
+			Description: S["block"],
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
@@ -861,8 +405,8 @@ func init() {
 			},
 		},
 		{
-			Name:        "poke-unban",
-			Description: S["poke-unban"],
+			Name:        "unblock",
+			Description: S["unblock"],
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
@@ -873,8 +417,8 @@ func init() {
 			},
 		},
 		{
-			Name:        "poke-admin",
-			Description: S["poke-admin"],
+			Name:        "admin",
+			Description: S["admin"],
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
@@ -927,33 +471,6 @@ func init() {
 		fmt.Println("Leaderboard is nil, creating new one")
 		leaderboard.Entries = make([]LeaderboardEntry, 0)
 	}
-	transport = &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-	}
-
-	// Enable TCP_NODELAY
-	tcpConn := transport.DialContext
-	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		conn, err := tcpConn(ctx, network, addr)
-		if err != nil {
-			return nil, err
-		}
-
-		tcpConn, ok := conn.(*net.TCPConn)
-		if !ok {
-			return conn, nil
-		}
-
-		err = tcpConn.SetNoDelay(true)
-		if err != nil {
-			fmt.Println("Error setting TCP_NODELAY:", err)
-		}
-
-		return conn, nil
-	}
 }
 
 func RunBot(BotToken string) {
@@ -966,7 +483,6 @@ func RunBot(BotToken string) {
 	if err != nil {
 		panic(err)
 	}
-	executablePath = filepath.Dir(ex)
 	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
@@ -987,8 +503,6 @@ func RunBot(BotToken string) {
 	session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		fmt.Printf("Logged in as: %v#%v\n", s.State.User.Username, s.State.User.Discriminator)
 	})
-	get("load?path=" + executablePath + "/latest_save.png")
-	get("step")
 	session.Open()
 	_, err = session.ApplicationCommandBulkOverwrite(session.State.User.ID, "", commands)
 	check(err)
