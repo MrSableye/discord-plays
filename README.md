@@ -1,5 +1,7 @@
 # discord-plays
 
+:warning: discord-plays is currently under a rewrite! If you're looking for the stable version, try the http branch :warning:
+
 A discord bot hosting GB, GBC, GBA, NDS and 3DS emulators!
 
 <p align="center">
