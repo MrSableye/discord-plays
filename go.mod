@@ -2,7 +2,7 @@ module bot
 
 go 1.19
 
-require github.com/bwmarrin/discordgo v0.26.1
+require github.com/bwmarrin/discordgo v0.27.2-0.20240104191117-afc57886f91a
 
 require (
 	github.com/ericpauley/go-quantize v0.0.0-20200331213906-ae555eb2afa4 // indirect
