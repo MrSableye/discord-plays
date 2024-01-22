@@ -21,7 +21,7 @@
     "status": "Show the emulator status",
     "leaderboardEntries": "15",
     "bannedMessage": "You have been banned from using this bot: <@!%ID%>",
-    "hold": "Specify a button to hold. Don't pass any parameters to unhold any pressed buttons. Buttons are automatically unheld after 2 minutes of no use.",
+    "hold": "Specify a button to hold. Don't pass any parameters to unhold any pressed buttons.",
     "holdOptionButton": "The button to hold. Or leave empty to release all buttons.",
     "bannedMessageTooNew": "Your account is too new. You are now timed out from using this bot. <@%ID%>",
     "poke-ban": "Ban a user from using the bot (only bot admins can use this command)",
