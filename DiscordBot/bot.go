@@ -105,7 +105,11 @@ const (
 	ButtonR
 	ButtonX
 	ButtonY
+
+	ButtonsCount
 )
+
+var heldButtons []ButtonType
 
 var (
 	commands []*discordgo.ApplicationCommand
@@ -530,8 +534,12 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	timeSincePress := time.Since(lastPressTime)
 	lastPressTime = time.Now()
 	if timeSincePress > time.Minute*2 {
-		// Reset frame pressed count
+		// Reset frame pressed count and held buttons
 		settings.FramesSteppedPressed = initialFramesSteppedPressed
+		heldButtons = make([]ButtonType, 0)
+	}
+	for j := 0; j < len(heldButtons); j++ {
+		checkOk(get("input?" + heldButtons[j].String() + "=1"))
 	}
 	checkOk(get("input?" + button.String() + "=1"))
 	gifEncoder := gif.GIF{}
@@ -550,6 +558,9 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 		go encodeAddGif(&gifEncoder)
 		checkOk(get("step?frames=" + strconv.Itoa(settings.FramesToSample)))
 		gifWg.Wait()
+	}
+	for j := 0; j < len(heldButtons); j++ {
+		checkOk(get("input?" + heldButtons[j].String() + "=0"))
 	}
 	gifEncoder.LoopCount = -1
 	var buf bytes.Buffer
@@ -615,6 +626,8 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	}
 }
 
+var disabledButtons [ButtonsCount]bool
+
 func getButtons() []discordgo.MessageComponent {
 	return []discordgo.MessageComponent{
 		discordgo.ActionsRow{
@@ -623,26 +636,31 @@ func getButtons() []discordgo.MessageComponent {
 					Label:    S["keyLText"],
 					Style:    discordgo.SecondaryButton,
 					CustomID: "press_l",
+					Disabled: disabledButtons[ButtonL],
 				},
 				discordgo.Button{
 					Label:    S["keyUpText"],
 					Style:    discordgo.PrimaryButton,
 					CustomID: "press_up",
+					Disabled: disabledButtons[ButtonUp],
 				},
 				discordgo.Button{
 					Label:    S["keyRText"],
 					Style:    discordgo.SecondaryButton,
 					CustomID: "press_r",
+					Disabled: disabledButtons[ButtonR],
 				},
 				discordgo.Button{
 					Label:    S["keyAText"],
 					Style:    discordgo.SuccessButton,
 					CustomID: "press_a",
+					Disabled: disabledButtons[ButtonA],
 				},
 				discordgo.Button{
 					Label:    S["keyXText"],
 					Style:    discordgo.SecondaryButton,
 					CustomID: "press_x",
+					Disabled: disabledButtons[ButtonX],
 				},
 			},
 		},
@@ -652,6 +670,7 @@ func getButtons() []discordgo.MessageComponent {
 					Label:    S["keyLeftText"],
 					Style:    discordgo.PrimaryButton,
 					CustomID: "press_left",
+					Disabled: disabledButtons[ButtonLeft],
 				},
 				discordgo.Button{
 					Label:    S["keyEmptyText"],
@@ -663,17 +682,19 @@ func getButtons() []discordgo.MessageComponent {
 					Label:    S["keyRightText"],
 					Style:    discordgo.PrimaryButton,
 					CustomID: "press_right",
+					Disabled: disabledButtons[ButtonRight],
 				},
 				discordgo.Button{
 					Label:    S["keyYText"],
 					Style:    discordgo.SecondaryButton,
-					Disabled: false,
 					CustomID: "press_y",
+					Disabled: disabledButtons[ButtonY],
 				},
 				discordgo.Button{
 					Label:    S["keyBText"],
 					Style:    discordgo.DangerButton,
 					CustomID: "press_b",
+					Disabled: disabledButtons[ButtonB],
 				},
 			},
 		},
@@ -689,6 +710,7 @@ func getButtons() []discordgo.MessageComponent {
 					Label:    S["keyDownText"],
 					Style:    discordgo.PrimaryButton,
 					CustomID: "press_down",
+					Disabled: disabledButtons[ButtonDown],
 				},
 				discordgo.Button{
 					Label:    S["keyEmptyText"],
@@ -700,11 +722,13 @@ func getButtons() []discordgo.MessageComponent {
 					Label:    S["keyStartText"],
 					Style:    discordgo.PrimaryButton,
 					CustomID: "press_start",
+					Disabled: disabledButtons[ButtonStart],
 				},
 				discordgo.Button{
 					Label:    S["keySelectText"],
 					Style:    discordgo.PrimaryButton,
 					CustomID: "press_select",
+					Disabled: disabledButtons[ButtonSelect],
 				},
 			},
 		},
@@ -712,6 +736,10 @@ func getButtons() []discordgo.MessageComponent {
 }
 
 func init() {
+	heldButtons = make([]ButtonType, 0)
+	for i := 0; i < int(ButtonsCount); i++ {
+		disabledButtons[i] = false
+	}
 	stringsJson := RSF("strings.json")
 	if stringsJson == "" {
 		log.Fatalln("strings.json not found")
@@ -734,6 +762,18 @@ func init() {
 		{
 			Name:        "leaderboard",
 			Description: S["leaderboard"],
+		},
+		{
+			Name:        "hold",
+			Description: S["hold"],
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "button",
+					Description: S["holdOptionButton"],
+					Required:    false,
+				},
+			},
 		},
 		{
 			Name:        "poke-jail",
