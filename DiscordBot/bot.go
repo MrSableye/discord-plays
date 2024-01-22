@@ -151,6 +151,9 @@ var (
 		"frames": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			commandFrames(s, i)
 		},
+		"hold": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			commandHold(s, i)
+		},
 	}
 )
 
@@ -211,9 +214,6 @@ var (
 		},
 		"press_y": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			press(s, i, ButtonY)
-		},
-		"hold": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			hold(s, i)
 		},
 	}
 )
@@ -466,23 +466,6 @@ func removeBanned(id string) bool {
 	outJson, _ := json.Marshal(bannedPlayers)
 	ioutil.WriteFile("banned.json", outJson, 0644)
 	return true
-}
-
-func hold(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if checkBanned(s, i) {
-		return
-	}
-	if toggleKey == 0 {
-		toggleKey = 1
-	} else {
-		toggleKey = 0
-	}
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: "Toggled running: " + strconv.Itoa(toggleKey),
-		},
-	})
 }
 
 var gifWg sync.WaitGroup
