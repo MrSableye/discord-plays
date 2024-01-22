@@ -177,17 +177,7 @@ func mustAdmin(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
 var (
 	componentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"press_left": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			// TODO: add way to hold dpad
-			// if toggleKey == 1 {
-			// 	checkOk(get("input?B=1"))
-			// 	checkOk(get("step?frames=2"))
-			// 	settings.FramesSteppedPressed = framesSteppedPressedInit + settings.FramesSteppedToggle*toggleKey
-			// }
 			press(s, i, ButtonLeft)
-			// if toggleKey == 1 {
-			// 	settings.FramesSteppedPressed = framesSteppedPressedInit
-			// 	checkOk(get("input?B=0"))
-			// }
 		},
 		"press_right": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			press(s, i, ButtonRight)
@@ -772,6 +762,7 @@ func init() {
 					Name:        "button",
 					Description: S["holdOptionButton"],
 					Required:    false,
+					MaxLength:   10,
 				},
 			},
 		},
