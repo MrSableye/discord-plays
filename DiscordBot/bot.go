@@ -510,9 +510,13 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 		// Reset frame pressed count and held buttons
 		settings.FramesSteppedPressed = initialFramesSteppedPressed
 		heldButtons = make([]ButtonType, 0)
+		for i := 0; i < int(ButtonsCount); i++ {
+			disabledButtons[i] = false
+		}
 	}
 	for j := 0; j < len(heldButtons); j++ {
 		checkOk(get("input?" + heldButtons[j].String() + "=1"))
+		fmt.Print("holding " + heldButtons[j].String() + " ")
 	}
 	checkOk(get("input?" + button.String() + "=1"))
 	gifEncoder := gif.GIF{}

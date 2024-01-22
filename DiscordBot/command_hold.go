@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -9,7 +11,7 @@ import (
 func stringToButton(s string) ButtonType {
 	for i := 0; i < int(ButtonsCount); i++ {
 		var button ButtonType = ButtonType(i)
-		if button.String() == s {
+		if strings.ToLower(button.String()) == s {
 			return button
 		}
 	}
@@ -20,12 +22,14 @@ func commandHold(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if checkBanned(s, i) {
 		return
 	}
+	lastPressTime = time.Now()
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
 	optionMap := getOptions(i)
 
 	var requestedButton = strings.ToLower(optionMap["button"])
+	fmt.Println(requestedButton)
 	if requestedButton == "" {
 		heldButtons = make([]ButtonType, 0)
 		for i := 0; i < int(ButtonsCount); i++ {
@@ -41,7 +45,7 @@ func commandHold(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	found := false
 	for j := 0; j < int(ButtonsCount); j++ {
 		var button ButtonType = ButtonType(j)
-		if button.String() == requestedButton {
+		if strings.ToLower(button.String()) == requestedButton {
 			found = true
 		}
 	}
