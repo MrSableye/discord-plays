@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+var sillyCounter int = 0
 
 func stringToButton(s string) ButtonType {
 	for i := 0; i < int(ButtonsCount); i++ {
@@ -50,18 +53,20 @@ func commandHold(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		}
 	}
 
-	heldButtons = append(heldButtons, stringToButton(requestedButton))
-	disabledButtons[stringToButton(requestedButton)] = true
-
 	var response string
 	if found {
+		heldButtons = append(heldButtons, stringToButton(requestedButton))
+		disabledButtons[stringToButton(requestedButton)] = true
 		response = "Holding buttons: "
 		for j := 0; j < len(heldButtons); j++ {
 			response += heldButtons[j].String() + ", "
 		}
 		response = response[:len(response)-2]
 	} else {
-		response = "Button " + requestedButton + " is not a valid button. Valid buttons: "
+		sillyCounter++
+		response = i.Member.Nick + " is silly.\n"
+		response += "Silly counter: " + strconv.Itoa(sillyCounter) + "\n"
+		response += "Button " + requestedButton + " is not a valid button. Valid buttons: "
 		for j := 0; j < int(ButtonsCount); j++ {
 			button := ButtonType(j)
 			response += button.String() + ", "
