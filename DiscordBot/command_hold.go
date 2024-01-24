@@ -64,7 +64,7 @@ func commandHold(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		response = response[:len(response)-2]
 	} else {
 		sillyCounter++
-		response = i.Member.Nick + " is silly.\n"
+		response = i.Member.User.GlobalName + " is a silly panda :rping:.\n"
 		response += "Silly counter: " + strconv.Itoa(sillyCounter) + "\n"
 		response += "Button " + requestedButton + " is not a valid button. Valid buttons: "
 		for j := 0; j < int(ButtonsCount); j++ {
