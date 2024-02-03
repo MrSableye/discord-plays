@@ -30,34 +30,6 @@ import (
 	"golang.org/x/image/bmp"
 )
 
-type Pokemon struct {
-	Nickname string `json:"Name"`
-	Name     string `json:"Type"`
-	Exp      int
-	Hp       int
-	MaxHp    int
-	Level    int
-	Status   int
-}
-
-type Pokeball struct {
-	Name  string
-	Count int
-}
-
-type Pokeballs struct {
-	Count int
-	Balls []Pokeball
-}
-
-type GameData struct {
-	Name  string
-	Rival string
-	Money int
-	Johto int
-	Kanto int
-}
-
 type LeaderboardEntry struct {
 	Name       string
 	Id         string
@@ -89,6 +61,7 @@ var executablePath string
 var transport *http.Transport
 var profiling bool = false
 var lastPressTime time.Time
+var validRoles []string
 
 type ButtonType int
 
@@ -117,9 +90,6 @@ var (
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"screen": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			commandScreen(s, i)
-		},
-		"summary": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			commandSummary(s, i)
 		},
 		"help": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			commandHelp(s, i)
@@ -170,6 +140,7 @@ func mustAdmin(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
+				Flags:   discordgo.MessageFlagsEphemeral,
 				Content: SR("notAdmin", i),
 			},
 		})
@@ -361,6 +332,7 @@ func checkBanned(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
 				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
+						Flags: discordgo.MessageFlagsEphemeral,
 						Embeds: []*discordgo.MessageEmbed{
 							{
 								Title:       "Banned",
@@ -382,6 +354,7 @@ func checkBanned(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
+				Flags: discordgo.MessageFlagsEphemeral,
 				Embeds: []*discordgo.MessageEmbed{
 					{
 						Title:       "Banned",
@@ -404,6 +377,41 @@ func checkBanned(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
 	return false
 }
 
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
+func checkRole(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
+	if len(validRoles) == 0 { // If no roles configured, let anyone use it
+		return true
+	}
+	var roleLinks []string
+	for _, validRole := range validRoles {
+		if stringInSlice(validRole, i.Member.Roles) {
+			return true
+		}
+		roleLinks = append(roleLinks, fmt.Sprintf("<@&%s>", validRole))
+	}
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Flags: discordgo.MessageFlagsEphemeral,
+			Embeds: []*discordgo.MessageEmbed{
+				{
+					Title:       "Invalid Role",
+					Description: "One of the following roles is required to us this bot: " + strings.Join(roleLinks, ", "),
+				},
+			},
+		},
+	})
+	return false
+}
+
 // Gets string from strings.json and replaces variables
 func SR(str string, i *discordgo.InteractionCreate) string {
 	var options []*discordgo.ApplicationCommandInteractionDataOption = nil
@@ -414,6 +422,7 @@ func SR(str string, i *discordgo.InteractionCreate) string {
 	ret = strings.ReplaceAll(ret, "%NAME%", i.Member.User.Username)
 	ret = strings.ReplaceAll(ret, "%ID%", i.Member.User.ID)
 	ret = strings.ReplaceAll(ret, "%DATE%", time.Now().Format("2006-01-02"))
+	ret = strings.ReplaceAll(ret, "%DISPLAY%", i.Member.DisplayName())
 	if options != nil {
 		for i := 0; i < len(options); i++ {
 			ret = strings.ReplaceAll(ret, "%OPTION"+strconv.Itoa(i)+"%", options[i].StringValue())
@@ -502,6 +511,9 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 	if checkBanned(s, i) {
 		return
 	}
+	if !checkRole(s, i) {
+		return
+	}
 	mutex.Lock()
 	defer mutex.Unlock()
 	timeSincePress := time.Since(lastPressTime)
@@ -551,7 +563,7 @@ func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonTy
 				URL: "attachment://screen.gif",
 			},
 			Footer: &discordgo.MessageEmbedFooter{
-				Text: SR("footer", i),
+				Text: SR("footer", i) + ": " + button.String(),
 			},
 		},
 	}
@@ -729,10 +741,6 @@ func init() {
 			Description: S["screen"],
 		},
 		{
-			Name:        "summary",
-			Description: S["summary"],
-		},
-		{
 			Name:        "help",
 			Description: S["help"],
 		},
@@ -835,6 +843,10 @@ func init() {
 	bannedJson := RSF("banned.json")
 	if bannedJson != "" {
 		json.Unmarshal([]byte(bannedJson), &bannedPlayers)
+	}
+	rolesJson := RSF("roles.json")
+	if rolesJson != "" {
+		json.Unmarshal([]byte(rolesJson), &validRoles)
 	}
 	adminsJson := RSF("admins.json")
 	if adminsJson != "" {

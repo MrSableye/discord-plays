@@ -8,11 +8,14 @@ import (
 )
 
 func commandStatus(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if checkBanned(s, i) {
+	if !mustAdmin(s, i) {
 		return
 	}
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Flags: discordgo.MessageFlagsEphemeral,
+		},
 	})
 	resp := get("status")
 	defer resp.Body.Close()

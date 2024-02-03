@@ -9,7 +9,6 @@ A discord bot hosting a GB/GBC/GBA/NDS (and soon a 3DS) emulator!
 ## Commands:
 
 `/screen` shows the in-game screen with buttons    
-`/summary` shows a gif of the last few frames (TODO)    
 `/leaderboard` shows who pressed the most keys     
 `/poke-jail` shows who's currently banned    
 

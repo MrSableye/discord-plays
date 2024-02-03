@@ -22,6 +22,7 @@ func commandPokeBan(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
+					Flags:   discordgo.MessageFlagsEphemeral,
 					Content: SR("banInvalidDays", i),
 				},
 			})
@@ -39,6 +40,7 @@ func commandPokeBan(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
+				Flags:           discordgo.MessageFlagsEphemeral,
 				Content:         SR("userBanned", i),
 				AllowedMentions: &discordgo.MessageAllowedMentions{},
 			},
@@ -47,6 +49,7 @@ func commandPokeBan(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
+				Flags:           discordgo.MessageFlagsEphemeral,
 				Content:         SR("userAlreadyBanned", i),
 				AllowedMentions: &discordgo.MessageAllowedMentions{},
 			},

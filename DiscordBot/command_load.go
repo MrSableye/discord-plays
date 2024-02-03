@@ -8,6 +8,9 @@ func commandLoad(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Flags: discordgo.MessageFlagsEphemeral,
+		},
 	})
 	checkOk(get("load?path=" + executablePath + "/save.png"))
 	str := S["loadedSave"]

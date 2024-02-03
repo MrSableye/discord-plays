@@ -27,9 +27,6 @@ func commandScreen(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			Image: &discordgo.MessageEmbedImage{
 				URL: "attachment://screen.png",
 			},
-			Footer: &discordgo.MessageEmbedFooter{
-				Text: "https://github.com/OFFTKP/pokemon-bot",
-			},
 		},
 	}
 	buttons := getButtons()

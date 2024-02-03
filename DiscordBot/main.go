@@ -162,8 +162,6 @@ func showPanel() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 	fmt.Println("Bot is running. Press Ctrl+C to stop.")
-	fmt.Println("Control panel: http://localhost:4321/panel.html (Not yet implemented) (TODO)")
-	// TODO: Implement control panel, on Go side for easier execution of admin commands
 	<-stop
 }
 

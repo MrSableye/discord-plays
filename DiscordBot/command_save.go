@@ -9,11 +9,17 @@ import (
 )
 
 func commandSave(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if !mustAdmin(s, i) {
+		return
+	}
 	if checkBanned(s, i) {
 		return
 	}
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Flags: discordgo.MessageFlagsEphemeral,
+		},
 	})
 	checkOk(get("save?path=" + executablePath + "/save.png"))
 	b, _ := ioutil.ReadFile(executablePath + "/save.png")
