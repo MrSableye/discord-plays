@@ -62,6 +62,7 @@ var transport *http.Transport
 var profiling bool = false
 var lastPressTime time.Time
 var validRoles []string
+var validChannels []string
 
 type ButtonType int
 
@@ -386,6 +387,32 @@ func stringInSlice(a string, list []string) bool {
 	return false
 }
 
+func checkChannel(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
+	if len(validChannels) == 0 {
+		return true
+	}
+	var channelLinks []string
+	for _, validChannel := range validChannels {
+		if validChannel == i.ChannelID {
+			return true
+		}
+		channelLinks = append(channelLinks, fmt.Sprintf("<#%s>", validChannel))
+	}
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Flags: discordgo.MessageFlagsEphemeral,
+			Embeds: []*discordgo.MessageEmbed{
+				{
+					Title:       "Invalid Channel",
+					Description: "This bot can only be used in one of the following channels: " + strings.Join(channelLinks, ", "),
+				},
+			},
+		},
+	})
+	return false
+}
+
 func checkRole(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
 	if len(validRoles) == 0 { // If no roles configured, let anyone use it
 		return true
@@ -509,6 +536,9 @@ func checkDeferResponse(s *discordgo.Session, i *discordgo.InteractionCreate) bo
 
 func press(s *discordgo.Session, i *discordgo.InteractionCreate, button ButtonType) {
 	if checkBanned(s, i) {
+		return
+	}
+	if !checkChannel(s, i) {
 		return
 	}
 	if !checkRole(s, i) {
@@ -847,6 +877,10 @@ func init() {
 	rolesJson := RSF("roles.json")
 	if rolesJson != "" {
 		json.Unmarshal([]byte(rolesJson), &validRoles)
+	}
+	channelsJson := RSF("channels.json")
+	if channelsJson != "" {
+		json.Unmarshal([]byte(channelsJson), &validChannels)
 	}
 	adminsJson := RSF("admins.json")
 	if adminsJson != "" {

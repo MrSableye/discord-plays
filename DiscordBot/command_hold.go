@@ -25,6 +25,12 @@ func commandHold(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if checkBanned(s, i) {
 		return
 	}
+	if !checkChannel(s, i) {
+		return
+	}
+	if !checkRole(s, i) {
+		return
+	}
 	lastPressTime = time.Now()
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
